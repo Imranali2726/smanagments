@@ -14,3 +14,7 @@ composer-log.txt
 /storage/framework/views/*
 /storage/app/public/*
 /bootstrap/cache/*.php
+
+# server logs / deploy artifacts
+error_log
+/composer.phar
