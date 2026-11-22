@@ -50,8 +50,7 @@
         "sort-packages": true,
         "allow-plugins": {
             "php-http/discovery": true
-        },
-        "cafile": "C:\\xampp8.2\\htdocs\\imran\\school-management-api\\cacert-all.pem"
+        }
     },
     "minimum-stability": "stable",
     "prefer-stable": true
