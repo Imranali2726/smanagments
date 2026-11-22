@@ -1,0 +1,19 @@
+/* AAS School Manager — admin theme on top of ../portal/assets/portal.css */
+:root {
+    --brand: #4f46e5;
+    --brand-600: #4338ca;
+    --brand-50: #eef2ff;
+    --brand-100: #e0e7ff;
+    --accent: #f59e0b;
+}
+.auth-art { background: radial-gradient(900px 500px at 10% 0%, #6366f1 0%, transparent 60%), linear-gradient(150deg, #312e81 0%, #1e1b4b 100%); }
+.sidebar { background: #16133a; color: #dcdcf5; }
+.sidebar .brand-row small, .user-chip .role { color: #a5a3d9; }
+.nav a { color: #cfcdf0; }
+.nav-section { color: #8c89c7; }
+.brand-logo.aas { background: transparent; padding: 0; }
+.brand-logo.aas img { width: 100%; height: 100%; }
+.bar-chart .bar i { background: linear-gradient(180deg, #818cf8, var(--brand)); }
+.aas-name { letter-spacing: -.01em; }
+.aas-name b { color: #fbbf24; }
+.nav { scrollbar-width: thin; scrollbar-color: #3a3670 transparent; }

@@ -1,0 +1,16 @@
+/vendor
+/node_modules
+.env
+/storage/*.key
+/public/storage
+
+# local / machine-specific files
+cacert-all.pem
+composer-log.txt
+/public/admin/assets/.part
+/storage/logs/*
+/storage/framework/cache/*
+/storage/framework/sessions/*
+/storage/framework/views/*
+/storage/app/public/*
+/bootstrap/cache/*.php
