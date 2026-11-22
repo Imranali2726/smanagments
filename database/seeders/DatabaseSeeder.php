@@ -26,7 +26,7 @@ class DatabaseSeeder extends Seeder
         // Base data goes into the first (default) school created by the multi-school migration.
         $school = \App\Models\School::orderBy('id')->first()
             ?? \App\Models\School::create(['name' => 'Bright Future School', 'subdomain' => 'bfs']);
-        $school->update(['name' => 'Bright Future School']);
+        $school->update(['name' => 'Bright Future School', 'subdomain' => 'bfs']);
         \App\Support\Tenant::set($school);
 
         User::updateOrCreate(['email' => 'admin@school.com'], [
