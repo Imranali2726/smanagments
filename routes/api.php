@@ -55,6 +55,7 @@ use App\Http\Controllers\Api\TeacherController;
 use App\Http\Controllers\Api\TimetableController;
 use App\Http\Controllers\Api\TransportRouteController;
 use App\Http\Controllers\Api\UserController;
+use App\Http\Controllers\Api\WebsiteController;
 use App\Http\Controllers\Api\VehicleController;
 use App\Http\Controllers\Api\VisitorController;
 use Illuminate\Support\Facades\Route;
@@ -74,6 +75,9 @@ Route::pattern('id', '[0-9]+');
 Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:10,1');
 
 // ---------- Public (no login): online admission ----------
+// Each school's public website (on its own sub-domain).
+Route::get('/public/site', [WebsiteController::class, 'site'])->middleware('throttle:120,1');
+
 Route::prefix('public')->middleware('throttle:20,1')->group(function () {
     Route::get('/admission-form', [AdmissionApplicationController::class, 'formOptions']);
     Route::post('/admission-applications', [AdmissionApplicationController::class, 'apply']);
@@ -134,6 +138,9 @@ Route::middleware(['auth:sanctum', 'tenant.user'])->group(function () {
     Route::middleware('role:admin')->group(function () {
         Route::put('/settings', [SettingController::class, 'update']);
         Route::post('/settings', [SettingController::class, 'update']); // for multipart (logo upload)
+        Route::get('/website', [WebsiteController::class, 'show']);
+        Route::put('/website', [WebsiteController::class, 'update']);
+        Route::post('/website/image', [WebsiteController::class, 'upload']);
 
         Route::apiResource('users', UserController::class);
         Route::apiResource('academic-sessions', AcademicSessionController::class);

@@ -38,6 +38,7 @@ class Tenant
         'sms' => ['sms'],
         'events' => ['events'],
         'remarks' => ['student-remarks'],
+        'website' => ['website'],
     ];
 
     protected static ?School $school = null;

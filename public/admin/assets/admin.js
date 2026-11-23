@@ -2666,3 +2666,159 @@ Object.assign(Platform, {
         Router.add('/groups/:id', 'Edit school group', (v, p) => Platform.groupForm(v, +p.id));
     };
 }
+
+/* ===========================================================
+   School website (public landing page on the school's sub-domain)
+   =========================================================== */
+Object.assign(ICONS, {
+    globe: '<circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>',
+    image: '<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.1-3.1a2 2 0 0 0-2.8 0L6 21"/>',
+    external: '<path d="M15 3h6v6M10 14 21 3M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>',
+});
+MODULE_INFO.website = ['School website', ['/website']];
+{
+    const i = NAV.findIndex((n) => n[0] === '/settings');
+    NAV.splice(i >= 0 ? i + 1 : NAV.length, 0, ['/website', 'School Website', 'globe']);
+}
+
+const Website = {
+    SECTIONS: [['about', 'About us'], ['principal', 'Principal\'s message'], ['stats', 'Numbers strip'], ['programs', 'Programs'], ['facilities', 'Facilities'], ['gallery', 'Gallery'],
+        ['notices', 'Latest notices (from Notices)'], ['events', 'Upcoming events (from School Calendar)'], ['testimonials', 'Parent testimonials'], ['admission', 'Admission banner & button'], ['contact', 'Contact & map']],
+    LISTS: {
+        stats: { max: 4, blank: { value: '', label: '' }, fields: [['value', 'Number', 'e.g. 25+ or auto:students'], ['label', 'Label', 'e.g. Years of excellence']] },
+        programs: { max: 12, blank: { title: '', text: '' }, fields: [['title', 'Title', 'e.g. Primary (Class 1–5)'], ['text', 'Short description', '', 'textarea']] },
+        facilities: { max: 12, blank: { icon: '⭐', title: '', text: '' }, fields: [['icon', 'Icon (emoji)', '🔬', 'small'], ['title', 'Title', 'e.g. Computer lab'], ['text', 'Short description', '', 'textarea']] },
+        testimonials: { max: 9, blank: { name: '', role: '', text: '' }, fields: [['name', 'Name', 'e.g. Mrs. Ayesha'], ['role', 'Who', 'e.g. Mother of Hamza, Class 3'], ['text', 'What they say', '', 'textarea']] },
+    },
+    PRESETS: [['#1d4ed8', '#f59e0b'], ['#4f46e5', '#f59e0b'], ['#047857', '#facc15'], ['#b91c1c', '#f59e0b'], ['#0e7490', '#f97316'], ['#7c3aed', '#ec4899'], ['#0f172a', '#eab308'], ['#9d174d', '#fbbf24']],
+
+    get(o, path) { return path.split('.').reduce((x, k) => (x == null ? x : x[k]), o); },
+    set(o, path, v) { const ks = path.split('.'); const last = ks.pop(); const t = ks.reduce((x, k) => (x[k] ??= {}), o); t[last] = v; },
+
+    async page(view) {
+        const r = await API.get('/website');
+        const w = r.data;
+        const W = Website;
+        const ti = (path, label, extra = '') => field(label, `<input data-p="${path}" value="${esc(W.get(w, path) ?? '')}" ${extra}>`);
+        const ta = (path, label, rows = 4, extra = '') => field(label, `<textarea data-p="${path}" rows="${rows}" ${extra}>${esc(W.get(w, path) ?? '')}</textarea>`);
+        const img = (path, label, hint) => `<div class="field"><span>${esc(label)}</span><div class="ws-img" data-img="${path}">${W.imgBox(w, path)}</div>${hint ? `<small class="muted">${esc(hint)}</small>` : ''}</div>`;
+        const card = (title, sub, body, id = '') => `<div class="card mb" ${id ? `id="${id}"` : ''}><div class="card-head"><div><h2>${title}</h2>${sub ? `<small>${sub}</small>` : ''}</div></div><div class="card-body form">${body}</div></div>`;
+
+        view.innerHTML = `<div id="wsRoot"><style>
+            .ws-img{display:flex;gap:.8rem;align-items:center;flex-wrap:wrap}.ws-img .th{width:150px;height:96px;border-radius:12px;background:#eef0f7 center/cover;border:1px solid var(--line,#e5e7eb);display:grid;place-items:center;color:#9aa1b5}
+            .ws-img .th svg{width:28px;height:28px}.ws-row{border:1px solid var(--line,#e5e7eb);border-radius:14px;padding:.9rem 1rem;margin-bottom:.7rem;position:relative;background:#fafbff}
+            .ws-row .rm{position:absolute;right:.5rem;top:.5rem}.ws-row .form-row{margin:0}.ws-gal{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:.8rem}
+            .ws-gal .g{border:1px solid var(--line,#e5e7eb);border-radius:12px;overflow:hidden;background:#fff}.ws-gal .g div{height:110px;background:#eef0f7 center/cover;position:relative}
+            .ws-gal .g button{position:absolute;right:6px;top:6px}.ws-gal input{border:0;border-top:1px solid var(--line,#e5e7eb);border-radius:0;width:100%;font-size:.85rem;padding:.5rem .6rem}
+            .ws-sw{display:flex;gap:.5rem;flex-wrap:wrap}.ws-sw button{width:42px;height:42px;border-radius:12px;border:2px solid #fff;box-shadow:0 0 0 1px #d6d9e6;cursor:pointer}
+            .ws-save{position:sticky;bottom:0;z-index:5;background:rgba(255,255,255,.95);backdrop-filter:blur(6px);border-top:1px solid var(--line,#e5e7eb);padding:.9rem 0;display:flex;justify-content:flex-end;gap:.6rem;margin-top:.5rem}
+            .ws-url{font-weight:700;word-break:break-all}</style>
+        <div class="card mb"><div class="card-body" style="display:flex;gap:1rem;align-items:center;justify-content:space-between;flex-wrap:wrap">
+            <div><div class="muted"><small>Your school's public website</small></div><a class="ws-url" href="${esc(r.site_url)}" target="_blank" rel="noopener">${esc(r.site_url)}</a></div>
+            <div class="flex" style="gap:.6rem;align-items:center"><label class="check"><input type="checkbox" data-p="published" data-bool ${w.published ? 'checked' : ''}> Website is live</label>
+            <a class="btn secondary" href="${esc(r.site_url)}" target="_blank" rel="noopener">${icon('external')} View website</a></div></div></div>
+        <div class="grid-2" style="align-items:start"><div>
+            ${card('Colours', 'Pick your school colours', `<div class="ws-sw">${W.PRESETS.map(([p, a]) => `<button type="button" data-preset="${p},${a}" title="${p}" style="background:linear-gradient(135deg,${p} 60%,${a} 60%)"></button>`).join('')}</div>
+                <div class="form-row">${field('Main colour', `<input type="color" data-p="theme.primary" value="${esc(w.theme.primary)}">`)}${field('Highlight colour', `<input type="color" data-p="theme.accent" value="${esc(w.theme.accent)}">`)}</div>`)}
+            ${card('Top banner', 'The first thing visitors see', `${ti('hero.title', 'Heading')}${ta('hero.subtitle', 'Short introduction', 3)}${ti('hero.button', 'Button text')}${img('hero.image', 'Background photo', 'A wide photo of your building or students (JPG/PNG, up to 4 MB).')}`)}
+            ${card('About us', '', `${ti('about.title', 'Heading')}${ta('about.text', 'About your school (leave an empty line between paragraphs)', 7)}${img('about.image', 'Photo')}`)}
+            ${card('Principal\'s message', '', `<div class="form-row">${ti('principal.name', 'Name')}${ti('principal.designation', 'Designation')}</div>${ta('principal.message', 'Message', 6)}${img('principal.photo', 'Photo')}`)}
+            ${card('Contact', 'Shown at the bottom of the website', `${ta('contact.address', 'Address', 2)}<div class="form-row">${ti('contact.phone', 'Phone')}${ti('contact.whatsapp', 'WhatsApp number', 'placeholder="e.g. 0300 1234567"')}</div>
+                ${ti('contact.email', 'Email', 'type="email"')}${ti('contact.timings', 'Office timings')}${ta('contact.map', 'Google Maps embed link (optional — otherwise the address is shown on the map)', 2, 'placeholder="Google Maps → Share → Embed a map → copy the link"')}
+                <h3 class="mt">Social media</h3>${ti('social.facebook', 'Facebook page link', 'type="url" placeholder="https://facebook.com/…"')}${ti('social.instagram', 'Instagram link', 'type="url"')}${ti('social.youtube', 'YouTube link', 'type="url"')}`)}
+        </div><div>
+            ${card('Sections', 'Turn parts of the website on or off', W.SECTIONS.map(([k, l]) => `<label class="check" style="display:flex;margin-bottom:.45rem"><input type="checkbox" data-p="sections.${k}" data-bool ${w.sections?.[k] !== false ? 'checked' : ''}> ${esc(l)}</label>`).join(''))}
+            ${card('Numbers strip', 'Up to 4. Type <b>auto:students</b>, <b>auto:teachers</b> or <b>auto:classes</b> to show live counts.', `<div data-list="stats"></div>`)}
+            ${card('Programs', 'Classes or levels you offer', `<div data-list="programs"></div>`)}
+            ${card('Facilities', '', `<div data-list="facilities"></div>`)}
+            ${card('Gallery', 'Photos of events, classrooms and activities (up to 24)', `<div class="ws-gal" id="gal"></div><div class="mt-s"><button type="button" class="btn secondary" id="galAdd">${icon('upload')} Upload photos</button><input type="file" id="galFile" accept="image/*" multiple hidden></div>`)}
+            ${card('Parent testimonials', 'Short reviews from parents', `<div data-list="testimonials"></div>`)}
+        </div></div>
+        <div class="ws-save"><a class="btn secondary" href="${esc(r.site_url)}" target="_blank" rel="noopener">${icon('external')} Preview</a><button class="btn" id="wsSave" data-busy="Saving…">${icon('check')} Save website</button></div></div>`;
+        const root = $('#wsRoot', view);
+
+        // simple fields
+        root.addEventListener('input', (e) => {
+            const p = e.target.dataset.p; if (!p) return;
+            W.set(w, p, e.target.hasAttribute('data-bool') ? e.target.checked : e.target.value);
+        });
+        root.addEventListener('change', (e) => { const p = e.target.dataset.p; if (p && e.target.hasAttribute('data-bool')) W.set(w, p, e.target.checked); });
+        $$('[data-preset]', view).forEach((b) => (b.onclick = () => {
+            const [p, a] = b.dataset.preset.split(','); w.theme.primary = p; w.theme.accent = a;
+            $('[data-p="theme.primary"]', view).value = p; $('[data-p="theme.accent"]', view).value = a;
+        }));
+
+        // single images
+        const bindImg = (box) => {
+            const path = box.dataset.img;
+            box.innerHTML = W.imgBox(w, path);
+            $('[data-up]', box).onclick = () => $('input[type=file]', box).click();
+            const rm = $('[data-rm]', box); if (rm) rm.onclick = () => { W.set(w, path, ''); W.set(w, W.urlKey(path), null); bindImg(box); };
+            $('input[type=file]', box).onchange = async (e) => {
+                const f = e.target.files[0]; if (!f) return;
+                try { const u = await W.upload(f); W.set(w, path, u.path); W.set(w, W.urlKey(path), u.url); bindImg(box); } catch (err) { toast(err.message, 'error'); }
+            };
+        };
+        $$('[data-img]', view).forEach(bindImg);
+
+        // repeatable lists
+        const drawList = (box) => {
+            const key = box.dataset.list, cfg = W.LISTS[key], rows = (w[key] ||= []);
+            box.innerHTML = rows.map((row, i) => `<div class="ws-row"><button type="button" class="btn ghost sm rm" data-del="${i}" title="Remove">${icon('trash')}</button>
+                <div class="form-row">${cfg.fields.filter((f) => f[3] !== 'textarea').map(([f, l, ph, t]) => field(l, `<input data-p="${key}.${i}.${f}" value="${esc(row[f] ?? '')}" placeholder="${esc(ph || '')}" ${t === 'small' ? 'style="max-width:110px"' : ''}>`, t === 'small' ? 'shrink' : '')).join('')}</div>
+                ${cfg.fields.filter((f) => f[3] === 'textarea').map(([f, l]) => field(l, `<textarea data-p="${key}.${i}.${f}" rows="2">${esc(row[f] ?? '')}</textarea>`)).join('')}</div>`).join('')
+                + (rows.length < cfg.max ? `<button type="button" class="btn secondary sm" data-add>${icon('plus')} Add</button>` : '');
+            $$('[data-del]', box).forEach((b) => (b.onclick = () => { rows.splice(+b.dataset.del, 1); drawList(box); }));
+            const add = $('[data-add]', box); if (add) add.onclick = () => { rows.push({ ...cfg.blank }); drawList(box); $$('input', box).slice(-cfg.fields.length)[0]?.focus(); };
+        };
+        $$('[data-list]', view).forEach(drawList);
+
+        // gallery
+        const gal = $('#gal', view);
+        const drawGal = () => {
+            gal.innerHTML = (w.gallery || []).map((g, i) => `<div class="g"><div style="background-image:url('${esc(g.url)}')"><button type="button" class="btn ghost sm" data-gdel="${i}" title="Remove" style="background:#fff">${icon('trash')}</button></div><input data-p="gallery.${i}.caption" value="${esc(g.caption || '')}" placeholder="Caption (optional)"></div>`).join('') || '<p class="muted">No photos yet.</p>';
+            $$('[data-gdel]', gal).forEach((b) => (b.onclick = () => { w.gallery.splice(+b.dataset.gdel, 1); drawGal(); }));
+        };
+        drawGal();
+        $('#galAdd', view).onclick = () => $('#galFile', view).click();
+        $('#galFile', view).onchange = async (e) => {
+            const files = [...e.target.files].slice(0, 24 - (w.gallery || []).length);
+            const btn = $('#galAdd', view);
+            await busy(btn, async () => {
+                for (const f of files) {
+                    try { const u = await W.upload(f); (w.gallery ||= []).push({ image: u.path, url: u.url, caption: '' }); drawGal(); } catch (err) { toast(`${f.name}: ${err.message}`, 'error'); }
+                }
+            });
+            e.target.value = '';
+        };
+
+        // save
+        $('#wsSave', view).onclick = (e) => busy(e.currentTarget, async () => {
+            try {
+                const payload = JSON.parse(JSON.stringify(w));
+                payload.gallery = (payload.gallery || []).map(({ image, caption }) => ({ image, caption }));
+                ['hero', 'about'].forEach((k) => delete payload[k].image_url); delete payload.principal.photo_url;
+                const res = await API.put('/website', payload);
+                Object.assign(w, res.data); drawGal();
+                toast(res.message);
+            } catch (err) {
+                const first = err.errors ? Object.values(err.errors)[0]?.[0] : null;
+                toast(first || err.message, 'error');
+            }
+        });
+    },
+
+    urlKey(path) { return path + '_url'; },
+    imgBox(w, path) {
+        const url = Website.get(w, Website.urlKey(path));
+        return `<div class="th" style="${url ? `background-image:url('${esc(url)}')` : ''}">${url ? '' : icon('image')}</div>
+            <div class="flex" style="gap:.4rem"><button type="button" class="btn secondary sm" data-up>${icon('upload')} ${url ? 'Change' : 'Upload'}</button>${url ? `<button type="button" class="btn ghost sm" data-rm>${icon('trash')} Remove</button>` : ''}</div>
+            <input type="file" accept="image/*" hidden>`;
+    },
+    async upload(file) {
+        if (file.size > 4 * 1024 * 1024) throw new Error('Image is larger than 4 MB.');
+        const fd = new FormData(); fd.append('image', file);
+        return API.request('POST', '/website/image', { body: fd });
+    },
+};
+Router.add('/website', 'School Website', Website.page);
