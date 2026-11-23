@@ -29,6 +29,11 @@ class School extends Model
         return ! in_array($module, $this->disabled_modules ?? [], true);
     }
 
+    public function group(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    {
+        return $this->belongsTo(SchoolGroup::class, 'group_id');
+    }
+
     public function users(): HasMany
     {
         return $this->hasMany(User::class);
@@ -47,7 +52,7 @@ class School extends Model
     /** Public summary returned to the apps. */
     public function summary(): array
     {
-        return $this->only('id', 'name', 'subdomain', 'status', 'plan', 'student_limit', 'disabled_modules') + [
+        return $this->only('id', 'group_id', 'name', 'campus_name', 'subdomain', 'status', 'plan', 'student_limit', 'disabled_modules') + [
             'expires_at' => $this->expires_at?->toDateString(),
         ];
     }

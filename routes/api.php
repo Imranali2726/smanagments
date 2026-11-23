@@ -32,6 +32,7 @@ use App\Http\Controllers\Api\LeaveTypeController;
 use App\Http\Controllers\Api\LibraryController;
 use App\Http\Controllers\Api\MessageController;
 use App\Http\Controllers\Api\NoticeController;
+use App\Http\Controllers\Api\OwnerController;
 use App\Http\Controllers\Api\PaymentMethodController;
 use App\Http\Controllers\Api\PaymentSubmissionController;
 use App\Http\Controllers\Api\PlatformController;
@@ -88,6 +89,19 @@ Route::middleware(['auth:sanctum', 'tenant.user', 'superadmin'])->prefix('platfo
     Route::get('/schools/{school}', [PlatformController::class, 'show']);
     Route::put('/schools/{school}', [PlatformController::class, 'update']);
     Route::post('/schools/{school}/admin-password', [PlatformController::class, 'resetAdmin']);
+
+    // Multi-campus school groups
+    Route::get('/groups', [PlatformController::class, 'groups']);
+    Route::post('/groups', [PlatformController::class, 'storeGroup']);
+    Route::put('/groups/{group}', [PlatformController::class, 'updateGroup']);
+    Route::post('/groups/{group}/owners', [PlatformController::class, 'addOwner']);
+    Route::delete('/groups/{group}/owners/{owner}', [PlatformController::class, 'removeOwner']);
+});
+
+// ---------- Group owner: all campuses (main domain) ----------
+Route::middleware(['auth:sanctum', 'tenant.user', 'owner'])->prefix('owner')->group(function () {
+    Route::get('/campuses', [OwnerController::class, 'campuses']);
+    Route::get('/overview', [OwnerController::class, 'overview']);
 });
 
 Route::middleware(['auth:sanctum', 'tenant.user'])->group(function () {

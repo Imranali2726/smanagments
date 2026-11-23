@@ -18,6 +18,9 @@ class User extends Authenticatable
     /** Platform owner: manages schools, belongs to no school. */
     public const SUPER_ADMIN = 'super_admin';
 
+    /** Owner of a school group: sees all campuses of the group. */
+    public const OWNER = 'owner';
+
     protected $guarded = ['id'];
 
     protected $hidden = ['password', 'remember_token'];

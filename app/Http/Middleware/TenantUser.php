@@ -34,8 +34,30 @@ class TenantUser
             return $next($request);
         }
 
+        if ($user->role === User::OWNER) {
+            // Group owner: works on the main domain. With the X-Campus header (or on a campus
+            // sub-domain) they act as that campus' admin; without it they only see group-wide data.
+            $campus = Tenant::school() ?: ($request->header('X-Campus') ? School::find((int) $request->header('X-Campus')) : null);
+            if ($campus && (! $user->group_id || (int) $campus->group_id !== (int) $user->group_id)) {
+                return response()->json(['message' => 'This campus is not part of your school group.'], 403);
+            }
+            $request->attributes->set('real_role', User::OWNER);
+            if (! $campus) {
+                if (! in_array($request->path(), self::ALWAYS_ALLOWED, true) && ! $request->is('api/owner/*')) {
+                    return response()->json(['message' => 'Choose a campus first.', 'code' => 'choose_campus'], 403);
+                }
+
+                return $next($request);
+            }
+            Tenant::set($campus);
+            // Inside a campus the owner has the same rights as that campus' admin (in memory only).
+            $user->setAttribute('role', 'admin');
+            $user->syncOriginalAttribute('role');
+        }
+
         $school = Tenant::school();
-        if ($school && (int) $user->school_id !== (int) $school->id) {
+        $isOwner = $request->attributes->get('real_role') === User::OWNER;
+        if ($school && ! $isOwner && (int) $user->school_id !== (int) $school->id) {
             return response()->json(['message' => 'This account does not belong to this school.'], 403);
         }
         if (! $school) {

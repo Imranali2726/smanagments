@@ -34,7 +34,11 @@ class AuthController extends Controller
         if ($user->role === User::SUPER_ADMIN && \App\Support\Tenant::id()) {
             throw ValidationException::withMessages(['email' => 'The email or password is incorrect.']);
         }
-        if ($user->role !== User::SUPER_ADMIN) {
+        if ($user->role === User::OWNER) {
+            if (\App\Support\Tenant::id() || ! $user->group_id) {
+                throw ValidationException::withMessages(['email' => 'Owners sign in on the main address of AAS School Manager.']);
+            }
+        } elseif ($user->role !== User::SUPER_ADMIN) {
             $school = \App\Models\School::find($user->school_id);
             if (! $school) {
                 throw ValidationException::withMessages(['email' => 'Your account is not linked to a school.']);
@@ -61,9 +65,14 @@ class AuthController extends Controller
 
     public function me(Request $request): JsonResponse
     {
+        $user = $request->user();
+        $realRole = $request->attributes->get('real_role', $user->role);
+
         return response()->json([
-            'user' => $request->user()->loadProfile(),
-            'school' => \App\Models\School::find($request->user()->school_id)?->summary(),
+            'user' => $user->loadProfile(),
+            'real_role' => $realRole,
+            'school' => (\App\Support\Tenant::school() ?? \App\Models\School::find($user->school_id))?->summary(),
+            'group' => $user->group_id ? \App\Models\SchoolGroup::find($user->group_id)?->only('id', 'name') : null,
         ]);
     }
 

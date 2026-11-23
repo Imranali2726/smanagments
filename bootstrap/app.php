@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Middleware\ForceJsonResponse;
+use App\Http\Middleware\GroupOwner;
 use App\Http\Middleware\ResolveTenant;
 use App\Http\Middleware\RoleMiddleware;
 use App\Http\Middleware\SuperAdmin;
@@ -27,6 +28,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'role' => RoleMiddleware::class,
             'tenant.user' => TenantUser::class,
             'superadmin' => SuperAdmin::class,
+            'owner' => GroupOwner::class,
         ]);
         // API only: never redirect guests to a login page.
         $middleware->redirectGuestsTo(fn (Request $request) => $request->is('api/*') ? null : '/');

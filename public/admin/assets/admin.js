@@ -208,6 +208,8 @@ const API = {
             if (s) url += (url.includes('?') ? '&' : '?') + s;
         }
         const headers = { Accept: 'application/json' };
+        // Group owners working inside one campus send which campus (multi-campus).
+        try { const campus = localStorage.getItem('aas_campus'); if (campus) headers['X-Campus'] = campus; } catch (e) { /* storage unavailable */ }
         if (this.token()) headers.Authorization = 'Bearer ' + this.token();
         let payload;
         if (body instanceof FormData) payload = body;
@@ -302,7 +304,7 @@ const Router = {
         if (!App.user) {
             try { App.user = (await API.get('/me')).user; } catch (e) { return; }
         }
-        if (App.user.role !== 'admin' && App.user.role !== 'super_admin') return Pages.wrongRole();
+        if (!['admin', 'super_admin', 'owner'].includes(App.user.role)) return Pages.wrongRole();
 
         const route = this.routes.find((r) => r.rx.test(path));
         if (!route) return this.navigate('/');
@@ -476,7 +478,7 @@ const Pages = {
             await busy($('button[type=submit]', form), async () => {
                 try {
                     const res = await API.post('/login', { email: v.email.trim(), password: v.password, device_name: 'admin-panel' });
-                    if (res.user.role !== 'admin' && res.user.role !== 'super_admin') {
+                    if (!['admin', 'super_admin', 'owner'].includes(res.user.role)) {
                         showErrors(form, { errors: { email: ['This panel is for administrators. Parents and teachers use the portal.'] } });
                         fetch(API.base + '/logout', { method: 'POST', headers: { Accept: 'application/json', Authorization: 'Bearer ' + res.token } }).catch(() => {});
                         return;
@@ -2256,7 +2258,7 @@ function upcomingBirthdays(list, getDob, days = 7) {
     const baseRender = Layout.render;
     Layout.render = function () {
         baseRender.apply(this, arguments);
-        if ($('.gsearch') || (typeof Platform !== 'undefined' && Platform.active)) return;
+        if ($('.gsearch') || (typeof Platform !== 'undefined' && Platform.active) || (typeof Owner !== 'undefined' && Owner.active)) return;
         $('#pageTitle').insertAdjacentHTML('afterend', `<div class="gsearch">${icon('search')}<input id="gq" placeholder="Search students, staff, parents…" autocomplete="off"><div class="gresults hidden" id="gr"></div></div>`);
         const q = $('#gq'), box = $('#gr');
         let t, seq = 0;
@@ -2404,7 +2406,7 @@ const Platform = {
         const list = $('#list', view);
         if (!data.length) { list.innerHTML = emptyHtml('No schools found', 'Click "Add school" to register the first one.', 'cap'); return; }
         list.innerHTML = `<div class="table-wrap"><table class="table"><thead><tr><th>School</th><th>Address</th><th>Plan</th><th>Students</th><th>Expires</th><th>Status</th><th></th></tr></thead><tbody>
-        ${data.map((s, i) => `<tr><td><b>${esc(s.name)}</b><br><small>${esc(s.city || '')}${s.admin ? ' · ' + esc(s.admin.email) : ''}</small></td>
+        ${data.map((s, i) => `<tr><td><b>${esc(s.name)}</b>${s.group ? ` ${badge('info', s.group.name + (s.campus_name ? ' · ' + s.campus_name : ''))}` : ''}<br><small>${esc(s.city || '')}${s.admin ? ' · ' + esc(s.admin.email) : ''}</small></td>
             <td><a href="${esc(schoolUrl(s.subdomain))}" target="_blank">${esc(s.subdomain)}.${appDomain()}</a></td>
             <td>${fmt.cap(s.plan)}</td><td>${s.students_count}${s.student_limit ? ` / ${s.student_limit}` : ''}<br><small>${s.teachers_count} staff</small></td>
             <td class="nowrap">${s.expires_at ? fmt.date(s.expires_at) : '<small>No expiry</small>'}</td><td>${Platform.statusBadge(s)}</td>
@@ -2446,6 +2448,7 @@ const Platform = {
                 <div class="card"><div class="card-head"><h2>Plan & subscription</h2></div><div class="card-body form">
                     <div class="form-row">${field('Plan', sel('plan', options(PLANS, { selected: s.plan })))}${field('Student limit', inp('student_limit', s.student_limit ?? '', 'number', 'min="1" placeholder="No limit"'))}</div>
                     <div class="form-row">${field('Valid till', inp('expires_at', s.expires_at || (id ? '' : nextYear), 'date'))}${field('Status', sel('status', options([{ id: 'active', name: 'Active' }, { id: 'suspended', name: 'Suspended' }], { selected: s.status })))}</div>
+                    ${field('Campus name (if part of a school group)', inp('campus_name', s.campus_name, 'text', 'placeholder="e.g. Gulberg Campus"'))}
                     ${field('Notes (only you see these)', `<textarea name="notes" rows="2">${esc(s.notes || '')}</textarea>`)}
                 </div></div>
                 <div class="card"><div class="card-head"><h2>Modules</h2><span class="flex"><button type="button" class="btn ghost sm" id="allOn">All on</button></span></div><div class="card-body">
@@ -2481,3 +2484,185 @@ const Platform = {
         };
     },
 };
+
+/* ===========================================================
+   Multi-campus: group owner view + super admin "School groups"
+   =========================================================== */
+const Owner = {
+    active: false,
+    campus() { try { return localStorage.getItem('aas_campus'); } catch (e) { return null; } },
+    open(id) { try { localStorage.setItem('aas_campus', id); } catch (e) { /* ignore */ } location.hash = '#/'; location.reload(); },
+    leave() { try { localStorage.removeItem('aas_campus'); } catch (e) { /* ignore */ } location.hash = '#/'; location.reload(); },
+
+    /** Group-wide mode (no campus chosen). */
+    activate() {
+        if (this.active) return;
+        this.active = true;
+        NAV.length = 0;
+        NAV.push(['/', 'Group overview', 'grid']);
+        Router.routes = [];
+        Router.add('/', 'Group overview', Owner.overview);
+        App.school = { name: App.group?.name || 'All campuses', currency: App.school.currency || 'PKR' };
+    },
+
+    /** Inside one campus: add a way back to the group view. */
+    campusMode() {
+        if (this.campusModeOn) return;
+        this.campusModeOn = true;
+        NAV.unshift(['/all-campuses', 'All campuses', 'layers'], ['section', 'This campus']);
+        Router.add('/all-campuses', 'All campuses', () => Owner.leave());
+    },
+
+    async overview(view) {
+        const o = await API.get('/owner/overview');
+        const t = o.totals;
+        const money = (v) => fmt.money(v);
+        const maxCol = Math.max(1, ...o.campuses.map((c) => Number(c.finance.collected_this_month || 0)));
+        view.innerHTML = `
+        <div class="welcome"><div><h2>${esc(o.group?.name || 'Your school group')}</h2><p>${o.campuses.length} campus${o.campuses.length === 1 ? '' : 'es'} · ${new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</p></div>
+            <div class="actions">${o.campuses.slice(0, 3).map((c) => `<button class="btn" data-open="${c.campus.id}">${icon('cap')} ${esc(c.campus.campus_name || c.campus.name)}</button>`).join('')}</div></div>
+        <div class="stats mb">
+            <div class="card stat"><div class="ico tone-brand">${icon('users')}</div><div><div class="label">Students (all campuses)</div><div class="value">${t.students.toLocaleString()}</div><div class="hint">${t.teachers} teachers & staff</div></div></div>
+            <div class="card stat"><div class="ico tone-ok">${icon('check')}</div><div><div class="label">Attendance today</div><div class="value">${fmt.pct(t.attendance_percentage)}</div><div class="hint">${t.present_today} present of ${t.marked_today} marked</div></div></div>
+            <div class="card stat"><div class="ico tone-info">${icon('wallet')}</div><div><div class="label">Collected this month</div><div class="value">${money(t.collected_this_month)}</div><div class="hint">${money(t.collected_today)} today · billed ${money(t.billed_this_month)}</div></div></div>
+            <div class="card stat"><div class="ico tone-bad">${icon('alert')}</div><div><div class="label">Outstanding dues</div><div class="value">${money(t.outstanding_dues)}</div><div class="hint">${t.defaulter_students} students with dues</div></div></div>
+        </div>
+        <div class="grid-3 mb" id="campusCards">${o.campuses.map((c) => {
+            const s = c.campus, f = c.finance, a = c.attendance_today;
+            const state = s.status !== 'active' ? badge('rejected', 'Suspended') : s.is_expired ? badge('overdue', 'Expired') : badge('active', 'Active');
+            return `<div class="card"><div class="card-head"><div><h2>${esc(s.campus_name || s.name)}</h2><small>${esc(s.campus_name ? s.name : s.subdomain)}</small></div>${state}</div>
+                <div class="card-body"><div class="rc-summary">
+                    <div><span>Students</span><b>${c.counts.students}</b></div>
+                    <div><span>Attendance</span><b>${fmt.pct(a.percentage)}</b></div>
+                    <div><span>Collected (month)</span><b>${money(f.collected_this_month)}</b></div>
+                    <div><span>Dues</span><b>${money(f.outstanding_dues)}</b></div>
+                </div>
+                <p class="mt-s" style="margin-bottom:.8rem"><small>${c.counts.teachers} staff · ${c.pending.admission_applications} admissions & ${c.pending.leave_requests} leaves pending</small></p>
+                <button class="btn block" data-open="${s.id}">Open campus ${icon('arrowLeft', '').replace('<svg', '<svg style="transform:rotate(180deg)"')}</button></div></div>`;
+        }).join('') || `<div class="card">${emptyHtml('No campuses yet', 'Ask AAS School Manager to add campuses to your group.', 'cap')}</div>`}</div>
+        ${o.campuses.length ? `<div class="grid-2">
+            <div class="card"><div class="card-head"><h2>Fee collected this month</h2></div><div class="card-body">
+                <div class="bar-chart">${o.campuses.map((c) => `<div class="bar" title="${esc(c.campus.name)}"><b>${Math.round(Number(c.finance.collected_this_month || 0) / 1000)}k</b><i style="height:${Math.round((Number(c.finance.collected_this_month || 0) / maxCol) * 100)}%"></i></div>`).join('')}</div>
+                <div class="bar-labels">${o.campuses.map((c) => `<span>${esc(c.campus.campus_name || c.campus.name)}</span>`).join('')}</div></div></div>
+            <div class="card"><div class="card-head"><h2>Campus comparison</h2></div><div class="table-wrap"><table class="table compact"><thead><tr><th>Campus</th><th class="num">Students</th><th class="num">Att. %</th><th class="num">Billed</th><th class="num">Collected</th><th class="num">Dues</th><th class="num">Expenses</th></tr></thead><tbody>
+                ${o.campuses.map((c) => `<tr><td><a href="javascript:void 0" data-open="${c.campus.id}"><b>${esc(c.campus.campus_name || c.campus.name)}</b></a></td><td class="num">${c.counts.students}</td><td class="num">${fmt.pct(c.attendance_today.percentage)}</td>
+                    <td class="num">${money(c.finance.billed_this_month)}</td><td class="num">${money(c.finance.collected_this_month)}</td><td class="num">${money(c.finance.outstanding_dues)}</td><td class="num">${money(Number(c.finance.expenses_this_month || 0) + Number(c.finance.salaries_paid_this_month || 0))}</td></tr>`).join('')}
+                </tbody><tfoot><tr><td>Total</td><td class="num">${t.students}</td><td class="num">${fmt.pct(t.attendance_percentage)}</td><td class="num">${money(t.billed_this_month)}</td><td class="num">${money(t.collected_this_month)}</td><td class="num">${money(t.outstanding_dues)}</td><td class="num">${money(t.expenses_this_month + t.salaries_paid_this_month)}</td></tr></tfoot></table></div></div>
+        </div>` : ''}`;
+        $$('[data-open]', view).forEach((b) => (b.onclick = () => Owner.open(b.dataset.open)));
+    },
+};
+
+/* ---- routing: owners see the group view or one campus ---- */
+{
+    const prevResolve = Router.resolve;
+    Router.resolve = async function () {
+        const { path } = this.current();
+        if (path !== '/login' && API.token()) {
+            if (!App.user) {
+                try { const me = await API.get('/me'); App.user = me.user; App.tenant = me.school; App.realRole = me.real_role || me.user.role; App.group = me.group; } catch (e) {
+                    if (Owner.campus()) Owner.leave();
+                    return;
+                }
+            }
+            App.realRole = App.realRole || App.user.role;
+            if (App.realRole === 'owner') {
+                if (!App.group) { try { App.group = (await API.get('/me')).group; } catch (e) { /* ignore */ } }
+                if (Owner.campus()) Owner.campusMode(); else Owner.activate();
+            }
+        }
+        return prevResolve.call(this);
+    };
+    const prevLogout = Pages.logout;
+    Pages.logout = async () => { try { localStorage.removeItem('aas_campus'); } catch (e) { /* ignore */ } await prevLogout(); };
+
+    // Campus switcher in the top bar for owners working inside a campus.
+    const prevRender = Layout.render;
+    Layout.render = function () {
+        prevRender.apply(this, arguments);
+        if (App.realRole !== 'owner' || !Owner.campus() || $('#campusSwitch')) return;
+        $('#pageTitle').insertAdjacentHTML('afterend', `<label class="child-switch" id="campusSwitch" title="Switch campus">${icon('layers')}<select aria-label="Campus"><option>Loading…</option></select></label>`);
+        API.get('/owner/campuses').then(({ data }) => {
+            const sel = $('#campusSwitch select');
+            sel.innerHTML = `<option value="">← All campuses</option>` + options(data, { label: (c) => c.campus_name || c.name, selected: Owner.campus() });
+            sel.onchange = (e) => (e.target.value ? Owner.open(e.target.value) : Owner.leave());
+        }).catch(() => {});
+    };
+}
+
+/* ===========================================================
+   Super admin: school groups (multi-campus)
+   =========================================================== */
+Object.assign(Platform, {
+    async groups(view) {
+        const { data } = await API.get('/platform/groups');
+        view.innerHTML = `<div class="alert info mb">${icon('alert')}<div>A <b>school group</b> joins several campuses (schools) under one owner. Each campus keeps its own data and admin; the owner logs in on the main address and sees every campus.</div></div>
+            <div class="flex between mb"><span></span><a class="btn" href="#/groups/new">${icon('plus')} New group</a></div>
+            <div class="grid-2" id="g">${data.map((g, i) => `<div class="card"><div class="card-head"><div><h2>${esc(g.name)}</h2><small>${esc([g.contact_person, g.phone].filter(Boolean).join(' · '))}</small></div><a class="btn ghost sm" href="#/groups/${g.id}">${icon('edit')}</a></div>
+                <div class="card-body"><b>Campuses (${g.schools.length})</b>
+                ${g.schools.length ? `<ul class="list">${g.schools.map((s) => `<li class="item-row"><div class="grow">${esc(s.campus_name || s.name)}<br><small>${esc(s.subdomain)}.${appDomain()}</small></div>${Platform.statusBadge({ ...s, is_expired: s.expires_at && s.expires_at < fmt.today() })}</li>`).join('')}</ul>` : '<p class="muted">No campuses yet. Edit the group to add schools.</p>'}
+                <b class="mt">Owner logins</b>
+                ${g.owners.length ? `<ul class="list">${g.owners.map((u) => `<li class="item-row"><div class="avatar">${esc(initials(u.name))}</div><div class="grow">${esc(u.name)}<br><small>${esc(u.email)}${u.last_login_at ? ' · last login ' + fmt.relative(u.last_login_at) : ''}</small></div><button class="btn ghost sm" data-rm="${g.id}:${u.id}" title="Remove owner">${icon('trash')}</button></li>`).join('')}</ul>` : '<p class="muted">No owner login yet.</p>'}
+                <button class="btn secondary sm mt" data-owner="${i}">${icon('plus')} Add owner login</button></div></div>`).join('') || `<div class="card">${emptyHtml('No school groups yet', 'Create one when a school has more than one campus.', 'layers')}</div>`}</div>`;
+        $$('[data-owner]', view).forEach((b) => (b.onclick = () => {
+            const g = data[+b.dataset.owner];
+            formModal({ title: `Owner login · ${g.name}`, submitText: 'Create login',
+                fields: `<p>The owner signs in at <b>${esc(location.host + ROOT)}/admin/</b> and sees all campuses of this group.</p><div class="form-row">${field('Name *', inp('name', g.contact_person || '', 'text', 'required'))}${field('Email *', inp('email', g.email || '', 'email', 'required'))}</div>${field('Password * (min 6)', inp('password', '', 'text', 'required'))}`,
+                onSubmit: async (v, _f, close) => { toast((await API.post(`/platform/groups/${g.id}/owners`, v)).message); close(); Router.resolve(); } });
+        }));
+        $$('[data-rm]', view).forEach((b) => (b.onclick = async () => {
+            const [gid, uid] = b.dataset.rm.split(':');
+            if (!(await confirmBox('Remove this owner login? The campuses and their data are not affected.', { okText: 'Remove', danger: true }))) return;
+            try { toast((await API.del(`/platform/groups/${gid}/owners/${uid}`)).message); Router.resolve(); } catch (e) { toast(e.message, 'error'); }
+        }));
+    },
+
+    async groupForm(view, id = null) {
+        const [{ data: groups }, { data: schools }] = await Promise.all([API.get('/platform/groups'), API.get('/platform/schools')]);
+        const g = id ? groups.find((x) => x.id === id) : {};
+        if (id && !g) { view.innerHTML = errorHtml({ message: 'Group not found.' }); return; }
+        const inGroup = new Set((g.schools || []).map((s) => s.id));
+        view.innerHTML = `<form class="form" id="gf" novalidate><div class="grid-2" style="align-items:start">
+            <div class="card"><div class="card-head"><h2>Group</h2></div><div class="card-body form">
+                ${field('Group name *', inp('name', g.name, 'text', 'required placeholder="e.g. Bright Future Group of Schools"'))}
+                <div class="form-row">${field('Contact person', inp('contact_person', g.contact_person))}${field('Phone', inp('phone', g.phone))}</div>
+                ${field('Email', inp('email', g.email, 'email'))}
+                ${field('Notes', `<textarea name="notes" rows="2">${esc(g.notes || '')}</textarea>`)}
+                ${id ? '' : `<h3 class="mt">Owner login (optional)</h3>
+                <div class="form-row">${field('Owner name', inp('owner_name'))}${field('Owner email', inp('owner_email', '', 'email'))}</div>${field('Owner password (min 6)', inp('owner_password'))}`}
+            </div></div>
+            <div class="card"><div class="card-head"><h2>Campuses</h2><small>Tick the schools that belong to this group</small></div><div class="card-body">
+                ${schools.length ? schools.map((s) => {
+                    const other = s.group_id && s.group_id !== id;
+                    return `<label class="check" style="display:flex;margin-bottom:.45rem"><input type="checkbox" data-school="${s.id}" ${inGroup.has(s.id) ? 'checked' : ''}> ${esc(s.campus_name || s.name)} <small>&nbsp;${esc(s.subdomain)}${other ? ' · now in ' + esc(s.group?.name || 'another group') : ''}</small></label>`;
+                }).join('') : '<p class="muted">Add schools first.</p>'}
+                <p class="muted mt-s"><small>Tip: set a short "campus name" (e.g. "Gulberg Campus") on each school's edit page.</small></p>
+            </div></div></div>
+            <div class="flex mt" style="justify-content:flex-end"><a class="btn secondary" href="#/groups">Cancel</a><button class="btn" type="submit" data-busy="Saving…">${icon('check')} ${id ? 'Save group' : 'Create group'}</button></div></form>`;
+        const f = $('#gf', view);
+        f.onsubmit = (e) => {
+            e.preventDefault();
+            busy($('button[type=submit]', f), async () => {
+                try {
+                    const v = clean(formValues(f));
+                    Object.keys(v).filter((k) => !['name', 'contact_person', 'phone', 'email', 'notes', 'owner_name', 'owner_email', 'owner_password'].includes(k)).forEach((k) => delete v[k]);
+                    v.school_ids = $$('[data-school]', f).filter((c) => c.checked).map((c) => +c.dataset.school);
+                    const r = id ? await API.put('/platform/groups/' + id, v) : await API.post('/platform/groups', v);
+                    toast(r.message); go('/groups');
+                } catch (err) { showErrors(f, err); }
+            });
+        };
+    },
+});
+{
+    const baseActivate = Platform.activate.bind(Platform);
+    Platform.activate = function () {
+        const was = this.active;
+        baseActivate();
+        if (was) return;
+        NAV.push(['/groups', 'School groups', 'layers']);
+        Router.add('/groups', 'School groups', Platform.groups);
+        Router.add('/groups/new', 'New school group', (v) => Platform.groupForm(v));
+        Router.add('/groups/:id', 'Edit school group', (v, p) => Platform.groupForm(v, +p.id));
+    };
+}
