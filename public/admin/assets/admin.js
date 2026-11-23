@@ -1675,7 +1675,7 @@ Object.assign(Pages, {
             <div class="card stat"><div class="ico tone-bad">${icon('x')}</div><div><div class="label">Failed</div><div class="value">${s.failed ?? 0}</div></div></div>
             <div class="card stat"><div class="ico tone-info">${icon('chart')}</div><div><div class="label">Average</div><div class="value">${fmt.pct(s.average_percentage)}</div></div></div></div>
         <div class="card">${r.data?.length ? `<div class="table-wrap"><table class="table"><thead><tr><th>Pos.</th><th>Student</th><th>Marks</th><th>%</th><th>Grade</th><th>Result</th><th></th></tr></thead><tbody>
-        ${r.data.map((x) => `<tr><td>${x.position ?? '—'}</td><td><b>${esc(x.student?.full_name || x.name || '')}</b><br><small>Roll ${esc(x.student?.roll_no || '')}</small></td><td>${fmt.num(x.obtained_marks)} / ${fmt.num(x.total_marks)}</td>
+        ${r.data.map((x) => `<tr><td>${x.position ?? '—'}</td><td><b>${esc(x.student?.name || x.student?.full_name || x.name || '')}</b><br><small>Roll ${esc(x.student?.roll_no || '')}</small></td><td>${fmt.num(x.obtained_marks)} / ${fmt.num(x.total_marks)}</td>
             <td>${fmt.pct(x.percentage)}</td><td>${esc(x.grade || '—')}</td><td>${badge(String(x.result).toLowerCase(), x.result)}</td>
             <td><button class="btn ghost sm" data-rc="${x.student?.id || x.student_id}" title="Report card PDF">${icon('download')}</button></td></tr>`).join('')}</tbody></table></div>` : emptyHtml('No marks entered yet', 'Enter marks from the Marks Entry page.', 'clipboard')}</div>`;
         $$('[data-rc]', body).forEach((b) => (b.onclick = () => downloadOrToast(b, '/results/report-card', { exam_id: exam, student_id: b.dataset.rc, pdf: 1 }, 'report-card.pdf')));
@@ -2581,7 +2581,7 @@ const Owner = {
     Layout.render = function () {
         prevRender.apply(this, arguments);
         if (App.realRole !== 'owner' || !Owner.campus() || $('#campusSwitch')) return;
-        $('#pageTitle').insertAdjacentHTML('afterend', `<label class="child-switch" id="campusSwitch" title="Switch campus">${icon('layers')}<select aria-label="Campus"><option>Loading…</option></select></label>`);
+        $('#pageTitle').insertAdjacentHTML('afterend', `<label class="child-switch" id="campusSwitch" title="Switch campus" style="margin-left:auto;margin-right:.6rem">${icon('layers').replace('<svg', '<svg width="18" height="18" style="flex:none;color:#4f46e5"')}<select aria-label="Campus" style="min-width:190px"><option>Loading…</option></select></label>`);
         API.get('/owner/campuses').then(({ data }) => {
             const sel = $('#campusSwitch select');
             sel.innerHTML = `<option value="">← All campuses</option>` + options(data, { label: (c) => c.campus_name || c.name, selected: Owner.campus() });
