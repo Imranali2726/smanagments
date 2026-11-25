@@ -102,9 +102,10 @@ class PlatformController extends Controller
         $admin = User::where('school_id', $school->id)->where('role', 'admin')->orderBy('id')->first();
         abort_unless($admin, 404, 'This school has no admin account.');
         $admin->update(['password' => $data['password'], 'is_active' => true]);
+        $admin->clearTwoFactor(); // a lost phone is the usual reason for a reset
         $admin->tokens()->delete();
 
-        return response()->json(['message' => "Password reset for {$admin->email}."]);
+        return response()->json(['message' => "Password reset for {$admin->email}. Two-factor login is off for this account until they set it up again."]);
     }
 
     public function modules(): JsonResponse

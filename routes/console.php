@@ -17,3 +17,15 @@ Artisan::command('fees:generate {month?}', function (FeeService $fees, ?string $
 // Run with: php artisan schedule:work   (or a cron calling schedule:run every minute)
 Schedule::command('fees:generate')->monthlyOn(1, '06:00');
 Schedule::command('fees:apply-late-fines')->dailyAt('01:00');
+
+// Lost phone and no recovery codes (e.g. the super admin): turn two-factor login off from the server.
+Artisan::command('user:reset-2fa {email}', function (string $email) {
+    $user = \App\Models\User::withoutGlobalScopes()->where('email', $email)->first();
+    if (! $user) {
+        $this->error("No user with email {$email}.");
+
+        return 1;
+    }
+    $user->clearTwoFactor();
+    $this->info("Two-factor login turned off for {$user->name} ({$user->email}).");
+})->purpose('Turn off two-factor login for a user who lost their authenticator app');

@@ -478,13 +478,18 @@ const Pages = {
             await busy($('button[type=submit]', form), async () => {
                 try {
                     const res = await API.post('/login', { email: v.email.trim(), password: v.password, device_name: 'admin-panel' });
-                    if (!['admin', 'super_admin', 'owner'].includes(res.user.role)) {
-                        showErrors(form, { errors: { email: ['This panel is for administrators. Parents and teachers use the portal.'] } });
-                        fetch(API.base + '/logout', { method: 'POST', headers: { Accept: 'application/json', Authorization: 'Bearer ' + res.token } }).catch(() => {});
-                        return;
-                    }
-                    Auth.save(res.token, res.user);
-                    Router.navigate('/');
+                    const done = (r) => {
+                        if (!['admin', 'super_admin', 'owner'].includes(r.user.role)) {
+                            fetch(API.base + '/logout', { method: 'POST', headers: { Accept: 'application/json', Authorization: 'Bearer ' + r.token } }).catch(() => {});
+                            toast('This panel is for administrators. Parents and teachers use the portal.', 'error');
+                            setTimeout(() => location.reload(), 1800);
+                            return;
+                        }
+                        Auth.save(r.token, r.user);
+                        Router.navigate('/');
+                    };
+                    if (res.two_factor) return TwoFA.challenge(form, res, 'admin-panel', done);
+                    done(res);
                 } catch (err) { showErrors(form, err); }
             });
         };
@@ -1215,7 +1220,11 @@ M.guardians = Crud.page({
 M.users = Crud.page({
     endpoint: '/users', title: 'User accounts', singular: 'user', search: 'Name, email, phone', icon: 'user', reset: ['users'],
     filters: [{ name: 'role', label: 'Role', options: ['admin', 'teacher', 'student', 'parent', 'accountant', 'librarian', 'receptionist'] }],
-    columns: [{ label: 'Name', render: (r) => `<b>${esc(r.name)}</b>` }, { label: 'Email', key: 'email' }, { label: 'Role', render: (r) => badge('', fmt.cap(r.role)) }, { label: 'Active', render: (r) => yesNo(r.is_active) }, { label: 'Last login', cls: 'nowrap', render: (r) => fmt.relative(r.last_login_at) || '—' }],
+    columns: [{ label: 'Name', render: (r) => `<b>${esc(r.name)}</b>` }, { label: 'Email', key: 'email' }, { label: 'Role', render: (r) => badge('', fmt.cap(r.role)) }, { label: 'Active', render: (r) => yesNo(r.is_active) }, { label: '2FA', render: (r) => (r.two_factor_confirmed_at ? badge('active', 'On') : '<small class="muted">Off</small>') }, { label: 'Last login', cls: 'nowrap', render: (r) => fmt.relative(r.last_login_at) || '—' }],
+    actions: [{ label: 'Turn off 2FA', text: true, show: (r) => !!r.two_factor_confirmed_at, run: async (r) => {
+        if (!(await confirmBox(`Turn off two-factor login for ${r.name}? Use this when they lost their phone. They can sign in with the password and set it up again.`, { okText: 'Turn off', danger: true }))) return;
+        try { toast((await API.post(`/users/${r.id}/reset-two-factor`)).message); Router.resolve(); } catch (e) { toast(e.message, 'error'); }
+    } }],
     fields: (r) => [{ row: [{ name: 'name', label: 'Name', required: true }, { name: 'phone', label: 'Phone' }] }, { row: [{ name: 'email', label: 'Email', type: 'email', required: true }, { name: 'role', label: 'Role', type: 'select', required: true, options: ['admin', 'teacher', 'student', 'parent', 'accountant', 'librarian', 'receptionist'] }] },
         { name: 'password', label: r ? 'New password (leave empty to keep)' : 'Password (min 6)', type: 'password', required: !r }, { name: 'is_active', label: 'Active (can log in)', type: 'checkbox', value: true }],
     beforeSave: (b) => { if (!b.password) delete b.password; return b; },
@@ -2423,7 +2432,7 @@ const Platform = {
         }));
         $$('[data-pw]', list).forEach((b) => (b.onclick = () => {
             const s = data[+b.dataset.pw];
-            formModal({ title: `Reset admin password · ${s.name}`, submitText: 'Reset password', fields: `<p>For <b>${esc(s.admin?.email || 'the school admin')}</b>. They will be logged out everywhere.</p>${field('New password (min 6)', inp('password', '', 'text', 'required'))}`,
+            formModal({ title: `Reset admin password · ${s.name}`, submitText: 'Reset password', fields: `<p>For <b>${esc(s.admin?.email || 'the school admin')}</b>. They will be logged out everywhere, and two-factor login is turned off for this account (they can turn it on again).</p>${field('New password (min 6)', inp('password', '', 'text', 'required'))}`,
                 onSubmit: async (v, _f, close) => { toast((await API.post(`/platform/schools/${s.id}/admin-password`, v)).message); close(); } });
         }));
     },
@@ -2822,3 +2831,44 @@ const Website = {
     },
 };
 Router.add('/website', 'School Website', Website.page);
+
+/* ===========================================================
+   My account & security (password + two-factor login)
+   =========================================================== */
+Pages.security = async function (view) {
+    const u = App.user || {};
+    view.innerHTML = `<div class="grid-2" style="align-items:start">
+        <div class="card"><div class="card-head"><h2>${icon('user')} ${esc(u.name || 'My account')}</h2><small>${esc(u.email || '')}</small></div><div class="card-body">
+            <form class="form" id="pwForm">
+                <h3>Change password</h3>
+                ${field('Current password', '<input name="current_password" type="password" autocomplete="current-password" required>')}
+                ${field('New password (min 8)', '<input name="password" type="password" minlength="8" autocomplete="new-password" required>')}
+                ${field('Confirm new password', '<input name="password_confirmation" type="password" autocomplete="new-password" required>')}
+                <div><button class="btn" type="submit" data-busy="Updating…">Update password</button></div>
+            </form>
+            <hr><button class="btn secondary" id="logoutAll">${icon('logout')} Log out of all devices</button></div></div>
+        <div class="card" id="tfaCard"></div></div>`;
+    const pw = $('#pwForm', view);
+    pw.onsubmit = (e) => { e.preventDefault(); busy($('button[type=submit]', pw), async () => {
+        try { await API.post('/change-password', formValues(pw)); pw.reset(); toast('Password changed. Other devices were signed out.'); } catch (err) { showErrors(pw, err); }
+    }); };
+    $('#logoutAll', view).onclick = async () => {
+        if (!(await confirmBox('Log out from every device, including this one?'))) return;
+        try { await API.post('/logout-all'); } catch (e) { /* ignore */ }
+        try { localStorage.removeItem('aas_campus'); } catch (e) { /* ignore */ }
+        Auth.clear(); location.reload();
+    };
+    if (typeof TwoFA !== 'undefined') await TwoFA.card($('#tfaCard', view));
+};
+{
+    const addSecurity = () => {
+        if (!Router.routes.some((r) => r.pattern === '/security')) Router.add('/security', 'My account & security', Pages.security);
+        if (!NAV.some((n) => n[0] === '/security')) NAV.push(['section', 'My account'], ['/security', 'Security & 2FA', 'lock']);
+    };
+    addSecurity();
+    for (const obj of [Platform, Owner]) {
+        const base = obj.activate.bind(obj);
+        obj.activate = function () { base(); addSecurity(); };
+    }
+    if (!ICONS.lock) ICONS.lock = '<rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>';
+}

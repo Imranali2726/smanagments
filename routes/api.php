@@ -54,6 +54,7 @@ use App\Http\Controllers\Api\SupplierController;
 use App\Http\Controllers\Api\TeacherController;
 use App\Http\Controllers\Api\TimetableController;
 use App\Http\Controllers\Api\TransportRouteController;
+use App\Http\Controllers\Api\TwoFactorController;
 use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\WebsiteController;
 use App\Http\Controllers\Api\VehicleController;
@@ -73,6 +74,7 @@ Route::pattern('student', '[0-9]+');
 Route::pattern('id', '[0-9]+');
 
 Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:10,1');
+Route::post('/login/two-factor', [AuthController::class, 'loginTwoFactor'])->middleware('throttle:10,1');
 
 // ---------- Public (no login): online admission ----------
 // Each school's public website (on its own sub-domain).
@@ -116,6 +118,11 @@ Route::middleware(['auth:sanctum', 'tenant.user'])->group(function () {
     Route::post('/logout-all', [AuthController::class, 'logoutAll']);
     Route::post('/profile', [AuthController::class, 'updateProfile']);
     Route::post('/change-password', [AuthController::class, 'changePassword']);
+    Route::get('/two-factor', [TwoFactorController::class, 'status']);
+    Route::post('/two-factor/enable', [TwoFactorController::class, 'enable'])->middleware('throttle:10,1');
+    Route::post('/two-factor/confirm', [TwoFactorController::class, 'confirm'])->middleware('throttle:10,1');
+    Route::post('/two-factor/recovery-codes', [TwoFactorController::class, 'recoveryCodes'])->middleware('throttle:10,1');
+    Route::post('/two-factor/disable', [TwoFactorController::class, 'disable'])->middleware('throttle:10,1');
     Route::get('/notices/feed', [NoticeController::class, 'feed']);
     Route::get('/events/feed', [EventController::class, 'feed']);
     Route::get('/settings', [SettingController::class, 'index']);
@@ -138,6 +145,7 @@ Route::middleware(['auth:sanctum', 'tenant.user'])->group(function () {
     Route::middleware('role:admin')->group(function () {
         Route::put('/settings', [SettingController::class, 'update']);
         Route::post('/settings', [SettingController::class, 'update']); // for multipart (logo upload)
+        Route::post('/users/{user}/reset-two-factor', [TwoFactorController::class, 'resetForUser']);
         Route::get('/website', [WebsiteController::class, 'show']);
         Route::put('/website', [WebsiteController::class, 'update']);
         Route::post('/website/image', [WebsiteController::class, 'upload']);

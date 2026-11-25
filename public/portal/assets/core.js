@@ -472,15 +472,20 @@ const Pages = {
             await busy($('button[type=submit]', form), async () => {
                 try {
                     const res = await API.post('/login', { email: v.email.trim(), password: v.password, device_name: 'portal' });
-                    if (!Auth.portalFor(res.user.role)) {
-                        showErrors(form, { errors: { email: ['This portal is for parents, students and teachers. Staff accounts use the admin panel.'] } });
-                        // Revoke the token we just received (it was never stored).
-                        fetch(API.base + '/logout', { method: 'POST', headers: { Accept: 'application/json', Authorization: 'Bearer ' + res.token } }).catch(() => {});
-                        return;
-                    }
-                    Auth.save(res.token, res.user);
-                    App.children = [];
-                    Router.navigate('/');
+                    const done = (r) => {
+                        if (!Auth.portalFor(r.user.role)) {
+                            // Revoke the token we just received (it was never stored).
+                            fetch(API.base + '/logout', { method: 'POST', headers: { Accept: 'application/json', Authorization: 'Bearer ' + r.token } }).catch(() => {});
+                            toast('This portal is for parents, students and teachers. Staff accounts use the admin panel.', 'error');
+                            setTimeout(() => location.reload(), 1800);
+                            return;
+                        }
+                        Auth.save(r.token, r.user);
+                        App.children = [];
+                        Router.navigate('/');
+                    };
+                    if (res.two_factor) return TwoFA.challenge(form, res, 'portal', done);
+                    done(res);
                 } catch (err) { showErrors(form, err); }
             });
         };
@@ -750,7 +755,9 @@ const Pages = {
                     <label class="field"><span>Confirm new password</span><input name="password_confirmation" type="password" autocomplete="new-password" required></label>
                     <div><button class="btn" type="submit" data-busy="Updating…">Update password</button></div>
                 </form>
-                <hr><button class="btn secondary" id="logoutAll">${icon('logout')} Log out of all devices</button></div></div></div>`;
+                <hr><button class="btn secondary" id="logoutAll">${icon('logout')} Log out of all devices</button></div></div>
+            <div class="card" id="tfaCard"></div></div>`;
+        if (typeof TwoFA !== 'undefined') TwoFA.card($('#tfaCard', view)).catch(() => {});
 
         const pf = $('#profileForm', view);
         pf.onsubmit = async (e) => {
