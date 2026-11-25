@@ -18,3 +18,6 @@ composer-log.txt
 # server logs / deploy artifacts
 error_log
 /composer.phar
+
+# Created by cPanel for domain validation (blocks cPanel deploys if untracked)
+/public/.well-known/
