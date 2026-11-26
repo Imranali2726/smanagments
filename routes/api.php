@@ -19,6 +19,7 @@ use App\Http\Controllers\Api\FeeStructureController;
 use App\Http\Controllers\Api\FeeTypeController;
 use App\Http\Controllers\Api\GradeController;
 use App\Http\Controllers\Api\LandingController;
+use App\Http\Controllers\Api\StaffActivityController;
 use App\Http\Controllers\Api\GuardianController;
 use App\Http\Controllers\Api\HomeworkController;
 use App\Http\Controllers\Api\HomeworkSubmissionController;
@@ -80,6 +81,7 @@ Route::post('/login/two-factor', [AuthController::class, 'loginTwoFactor'])->mid
 // ---------- Public (no login): online admission ----------
 // Each school's public website (on its own sub-domain).
 Route::get('/public/landing', [LandingController::class, 'publicContent'])->middleware('throttle:120,1');
+Route::post('/public/landing/event', [LandingController::class, 'event'])->middleware('throttle:30,1');
 Route::get('/public/site', [WebsiteController::class, 'site'])->middleware('throttle:120,1');
 
 Route::prefix('public')->middleware('throttle:20,1')->group(function () {
@@ -101,6 +103,7 @@ Route::middleware(['auth:sanctum', 'tenant.user', 'superadmin'])->prefix('platfo
     // Main landing page content (aasschoolmanager.com)
     Route::get('/landing', [LandingController::class, 'show']);
     Route::put('/landing', [LandingController::class, 'update']);
+    Route::get('/landing/stats', [LandingController::class, 'stats']);
 
     // Multi-campus school groups
     Route::get('/groups', [PlatformController::class, 'groups']);
@@ -149,6 +152,11 @@ Route::middleware(['auth:sanctum', 'tenant.user'])->group(function () {
 
     // ---------- Admin only ----------
     Route::middleware('role:admin')->group(function () {
+        // Staff tracking
+        Route::get('/staff-activity/logs', [StaffActivityController::class, 'logs']);
+        Route::get('/staff-activity/users', [StaffActivityController::class, 'users']);
+        Route::get('/staff-activity/performance', [StaffActivityController::class, 'performance']);
+
         Route::put('/settings', [SettingController::class, 'update']);
         Route::post('/settings', [SettingController::class, 'update']); // for multipart (logo upload)
         Route::post('/users/{user}/reset-two-factor', [TwoFactorController::class, 'resetForUser']);

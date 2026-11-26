@@ -25,6 +25,9 @@ class AuthController extends Controller
         $user = User::where('email', $data['email'])->first();
 
         if (! $user || ! Hash::check($data['password'], $user->password)) {
+            if ($user && $user->role !== User::SUPER_ADMIN) {
+                \App\Models\ActivityLog::record($user, 'login_failed', 'Wrong password entered', $request);
+            }
             throw ValidationException::withMessages(['email' => 'The email or password is incorrect.']);
         }
 
@@ -102,6 +105,9 @@ class AuthController extends Controller
     private function issueToken(User $user, string $device, ?int $recoveryLeft = null): JsonResponse
     {
         $user->forceFill(['last_login_at' => now()])->save();
+        if ($user->role !== User::SUPER_ADMIN) {
+            \App\Models\ActivityLog::record($user, 'login', 'Signed in', request());
+        }
         $token = $user->createToken($device)->plainTextToken;
 
         return response()->json([
@@ -130,6 +136,9 @@ class AuthController extends Controller
     public function logout(Request $request): JsonResponse
     {
         $request->user()->currentAccessToken()?->delete();
+        if ($request->user()->role !== User::SUPER_ADMIN) {
+            \App\Models\ActivityLog::record($request->user(), 'logout', 'Signed out', $request);
+        }
 
         return response()->json(['message' => 'Logged out successfully.']);
     }

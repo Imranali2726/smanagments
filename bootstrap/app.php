@@ -6,6 +6,7 @@ use App\Http\Middleware\ResolveTenant;
 use App\Http\Middleware\RoleMiddleware;
 use App\Http\Middleware\SuperAdmin;
 use App\Http\Middleware\TenantUser;
+use App\Http\Middleware\TrackActivity;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -32,7 +33,7 @@ return Application::configure(basePath: dirname(__DIR__))
             '2400:cb00::/32', '2606:4700::/32', '2803:f800::/32', '2405:b500::/32', '2405:8100::/32',
             '2a06:98c0::/29', '2c0f:f248::/32',
         ]);
-        $middleware->api(prepend: [ForceJsonResponse::class]);
+        $middleware->api(prepend: [ForceJsonResponse::class], append: [TrackActivity::class]);
         $middleware->alias([
             'role' => RoleMiddleware::class,
             'tenant.user' => TenantUser::class,

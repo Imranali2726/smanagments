@@ -654,7 +654,22 @@ $('#cPhone').href = 'tel:' + CONFIG.phone.replace(/\s/g, '');
 $('#cMail').href = `mailto:${CONFIG.email}?subject=${encodeURIComponent('AAS School Manager demo')}`;
 $$('a[data-wa]').forEach((a) => { a.href = waLink(CONFIG.whatsapp); a.target = '_blank'; a.rel = 'noopener'; });
 $('#yr').textContent = new Date().getFullYear();
-$('#vidPlay').onclick = () => { const v = $('#ovVideo'); $('#vidbox').classList.add('playing'); v.controls = true; v.play(); };
+// Anonymous click counts for the super admin's "Landing visitors" page (no cookies).
+const track = (event) => {
+    if (!L || !navigator.sendBeacon) return;
+    try {
+        const fd = new FormData();
+        fd.append('event', event); fd.append('ref', document.referrer || ''); fd.append('path', location.pathname);
+        fd.append('utm', new URLSearchParams(location.search).get('utm_source') || '');
+        navigator.sendBeacon('api/public/landing/event', fd);
+    } catch (e) { /* ignore */ }
+};
+document.addEventListener('click', (e) => {
+    const a = e.target.closest('a'); if (!a) return;
+    if (/wa\.me\//.test(a.href)) track('whatsapp');
+    else if (/^(admin|portal)\//.test(a.getAttribute('href') || '')) track('login');
+});
+$('#vidPlay').onclick = () => { const v = $('#ovVideo'); $('#vidbox').classList.add('playing'); v.controls = true; v.play(); track('video'); };
 
 const nav = $('#nav');
 const onScroll = () => nav.classList.toggle('solid', scrollY > 30);

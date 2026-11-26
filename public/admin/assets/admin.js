@@ -3012,3 +3012,165 @@ const Landing = {
         Router.add('/landing', 'Landing page', Landing.page);
     };
 }
+
+/* ===========================================================
+   School admin: Staff tracking (online status, activity log, performance)
+   =========================================================== */
+Object.assign(ICONS, {
+    activity: '<path d="M22 12h-4l-3 9L9 3l-3 9H2"/>',
+    eye: '<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
+});
+Object.assign(BADGE_TONES, { login: 'ok', logout: '', login_failed: 'bad', create: 'brand', update: 'info', delete: 'bad' });
+const dur = (s) => { s = Math.round(+s || 0); if (s < 60) return s ? '< 1 min' : '—'; const h = Math.floor(s / 3600), m = Math.round((s % 3600) / 60); return h ? `${h}h ${m}m` : `${m} min`; };
+const ACT_LABEL = { login: 'Signed in', logout: 'Signed out', login_failed: 'Wrong password', create: 'Added', update: 'Changed', delete: 'Deleted' };
+{
+    const i = NAV.findIndex((n) => n[0] === '/staff-attendance');
+    NAV.splice(i >= 0 ? i + 1 : NAV.length, 0, ['/staff-activity', 'Staff Tracking', 'activity']);
+}
+const StaffTrack = {
+    async page(view, _p, q) {
+        const tab = q.tab || 'online';
+        const TABS = [['online', 'Online & logins'], ['log', 'Activity log'], ['perf', 'Performance report']];
+        view.innerHTML = `<div class="tabs">${TABS.map(([k, l]) => `<button data-tab="${k}" class="${tab === k ? 'active' : ''}">${l}</button>`).join('')}</div><div id="stBody">${loadingHtml()}</div>`;
+        $$('[data-tab]', view).forEach((b) => (b.onclick = () => go('/staff-activity', { tab: b.dataset.tab })));
+        const body = $('#stBody', view);
+        try { await StaffTrack[tab](body, q); } catch (e) { body.innerHTML = errorHtml(e); }
+    },
+
+    async online(body, q) {
+        const draw = async () => {
+            const r = await API.get('/staff-activity/users', { include_parents: q.parents ? 1 : '' });
+            const s = r.summary;
+            const stat = (ico, tone, label, value, hint = '') => `<div class="card stat"><div class="ico tone-${tone}">${icon(ico)}</div><div><div class="label">${label}</div><div class="value">${value}</div>${hint ? `<div class="hint">${hint}</div>` : ''}</div></div>`;
+            body.innerHTML = `<div class="stats mb">${stat('activity', 'ok', 'Online now', s.online, 'Used the panel in the last 5 minutes')}${stat('clock', 'info', 'Active today', s.active_today, `of ${s.total} accounts`)}
+                ${stat('users', 'brand', 'Accounts', s.total)}${stat('alert', 'warn', 'Never signed in', s.never_logged_in)}</div>
+            <div class="card"><div class="card-head"><h2>Who is using the system</h2><label class="check"><input type="checkbox" id="par" ${q.parents ? 'checked' : ''}> Show parents & students too</label></div>
+            <div class="table-wrap"><table class="table"><thead><tr><th>Name</th><th>Status</th><th>Today</th><th>Last 7 days</th><th>Last sign-in</th><th></th></tr></thead><tbody>
+            ${r.data.map((u) => `<tr>
+                <td><b>${esc(u.name)}</b><br><small>${esc(fmt.cap(u.role))} · ${esc(u.email || '')}</small>${u.is_active ? '' : ' ' + badge('rejected', 'Disabled')}</td>
+                <td>${u.online ? '<span class="badge ok">● Online</span>' : u.last_seen_at ? `<small>Last seen ${esc(fmt.relative(u.last_seen_at))}</small>` : '<small class="muted">Never</small>'}</td>
+                <td>${u.today_seconds ? `<b>${dur(u.today_seconds)}</b><br><small>from ${esc(new Date(u.today_first_seen).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }))}</small>` : '<small class="muted">—</small>'}</td>
+                <td>${u.week_seconds ? `${dur(u.week_seconds)}<br><small>${u.week_days} day${u.week_days === 1 ? '' : 's'}</small>` : '<small class="muted">—</small>'}</td>
+                <td>${u.last_login_at ? `${esc(fmt.datetime(u.last_login_at))}<br><small>${esc(u.last_login_device || '')}${u.last_login_ip ? ' · ' + esc(u.last_login_ip) : ''}</small>` : '<small class="muted">Never</small>'}
+                    ${u.failed_logins_24h ? `<br>${badge('login_failed', `${u.failed_logins_24h} wrong password${u.failed_logins_24h > 1 ? 's' : ''} (24h)`)}` : ''}</td>
+                <td><button class="btn ghost sm" data-log="${u.id}">Activity</button></td></tr>`).join('')}
+            </tbody></table></div></div><p class="muted mt-s"><small>Updates every minute. Time is counted while a person is using the panel or app.</small></p>`;
+            $('#par', body).onchange = (e) => go('/staff-activity', { tab: 'online', parents: e.target.checked ? 1 : '' });
+            $$('[data-log]', body).forEach((b) => (b.onclick = () => go('/staff-activity', { tab: 'log', user_id: b.dataset.log })));
+        };
+        await draw();
+        const timer = setInterval(() => { if (!document.body.contains(body)) return clearInterval(timer); draw().catch(() => {}); }, 60000);
+    },
+
+    async log(body, q) {
+        const users = (await API.get('/staff-activity/users', { include_parents: 1 })).data;
+        const f = { user_id: q.user_id || '', action: q.action || '', from: q.from || '', to: q.to || '', search: q.search || '', page: +q.page || 1 };
+        const r = await API.get('/staff-activity/logs', f);
+        body.innerHTML = `<div class="card mb"><div class="card-body"><div class="toolbar" id="flt">
+            <label class="field"><span>Person</span><select name="user_id"><option value="">Everyone</option>${users.map((u) => `<option value="${u.id}" ${String(u.id) === String(f.user_id) ? 'selected' : ''}>${esc(u.name)} (${esc(fmt.cap(u.role))})</option>`).join('')}</select></label>
+            <label class="field"><span>What</span><select name="action"><option value="">Everything</option>${Object.entries(ACT_LABEL).map(([k, l]) => `<option value="${k}" ${f.action === k ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
+            <label class="field"><span>From</span><input type="date" name="from" value="${esc(f.from)}"></label>
+            <label class="field"><span>To</span><input type="date" name="to" value="${esc(f.to)}"></label>
+            <label class="field"><span>Search</span><input name="search" value="${esc(f.search)}" placeholder="e.g. fee, student name"></label></div></div></div>
+        <div class="card">${r.data.length ? `<div class="table-wrap"><table class="table"><thead><tr><th>When</th><th>Who</th><th>Action</th><th>Details</th><th>Device</th></tr></thead><tbody>
+            ${r.data.map((l) => `<tr><td><b>${esc(fmt.datetime(l.at))}</b><br><small>${esc(fmt.relative(l.at))}</small></td>
+                <td><b>${esc(l.user.name)}</b><br><small>${esc(fmt.cap(l.user.role || ''))}</small></td>
+                <td>${badge(l.action, ACT_LABEL[l.action] || l.action)}</td>
+                <td>${l.module ? `<small class="muted">${esc(l.module)}</small><br>` : ''}${esc(l.description)}</td>
+                <td><small>${esc(l.device || '')}${l.ip ? '<br>' + esc(l.ip) : ''}</small></td></tr>`).join('')}
+            </tbody></table></div>${pagerHtml(r)}` : emptyHtml('No activity found', 'Sign-ins and every add, change or delete in the system will show here.')}</div>`;
+        const apply = (extra = {}) => { const v = Object.fromEntries($$('#flt [name]', body).map((el) => [el.name, el.value])); go('/staff-activity', { tab: 'log', ...v, ...extra }); };
+        $$('#flt select, #flt input[type=date]', body).forEach((el) => (el.onchange = () => apply()));
+        const s = $('#flt [name=search]', body); s.onkeydown = (e) => { if (e.key === 'Enter') apply(); };
+        bindPager(body, (page) => apply({ page }));
+    },
+
+    async perf(body, q) {
+        const first = fmt.thisMonth() + '-01';
+        const from = q.from || first, to = q.to || fmt.today();
+        const r = await API.get('/staff-activity/performance', { from, to });
+        const pct = (a) => (a && a.expected ? Math.round((a.done / a.expected) * 100) : null);
+        body.innerHTML = `<div class="card mb"><div class="card-body"><div class="toolbar" id="flt">
+            <label class="field"><span>From</span><input type="date" name="from" value="${from}"></label><label class="field"><span>To</span><input type="date" name="to" value="${to}" max="${fmt.today()}"></label>
+            <span class="grow"></span><button class="btn secondary" id="csv">${icon('download')} Download (Excel)</button></div>
+            <small class="muted">${r.school_days} school day${r.school_days === 1 ? '' : 's'} in this period (days on which attendance was marked).</small></div></div>
+        <div class="card"><div class="table-wrap"><table class="table"><thead><tr><th style="min-width:200px">Staff</th><th>Days active</th><th>Time on system</th><th>Sign-ins</th><th>Changes</th><th>Attendance sheets</th><th>Own class attendance</th><th>Marks entered</th><th>Homework</th><th>Fees received</th></tr></thead><tbody>
+        ${r.data.map((u) => { const p = pct(u.class_attendance); return `<tr>
+            <td><b>${esc(u.name)}</b><br><small>${esc(fmt.cap(u.role))}${u.class_sections.length ? ' · Class teacher: ' + esc(u.class_sections.join(', ')) : ''}</small></td>
+            <td>${u.days_active || '—'}</td><td>${dur(u.active_seconds)}</td>
+            <td>${u.logins || '—'}${u.failed_logins ? `<br>${badge('login_failed', u.failed_logins + ' wrong')}` : ''}</td>
+            <td>${u.changes || '—'}${u.deletes ? `<br><small class="muted">${u.deletes} deleted</small>` : ''}</td>
+            <td>${u.attendance_sheets || '—'}${u.attendance_late ? `<br>${badge('late', u.attendance_late + ' marked late')}` : ''}</td>
+            <td>${p === null ? '<small class="muted">—</small>' : `${badge(p >= 95 ? 'present' : p >= 75 ? 'late' : 'absent', p + '%')}<br><small>${u.class_attendance.done} of ${u.class_attendance.expected} days</small>`}</td>
+            <td>${u.marks_entered || '—'}</td><td>${u.homework || '—'}</td>
+            <td>${u.fee_receipts ? `${u.fee_receipts}<br><small>${esc(fmt.money(u.fee_amount))}</small>` : '—'}</td></tr>`; }).join('')}
+        </tbody></table></div></div>
+        <p class="muted mt-s"><small><b>Own class attendance</b>: on how many school days the attendance of the class teacher's own section was marked. <b>Marked late</b>: attendance saved on a later day than the attendance date.</small></p>`;
+        $$('#flt input', body).forEach((el) => (el.onchange = () => go('/staff-activity', { tab: 'perf', from: $('#flt [name=from]', body).value, to: $('#flt [name=to]', body).value })));
+        $('#csv', body).onclick = () => {
+            const head = ['Staff', 'Role', 'Days active', 'Hours on system', 'Sign-ins', 'Changes', 'Attendance sheets', 'Marked late', 'Own class attendance %', 'Marks entered', 'Homework', 'Fee receipts', 'Fee amount'];
+            const rows = r.data.map((u) => [u.name, u.role, u.days_active, (u.active_seconds / 3600).toFixed(1), u.logins, u.changes, u.attendance_sheets, u.attendance_late, pct(u.class_attendance) ?? '', u.marks_entered, u.homework, u.fee_receipts, u.fee_amount]);
+            const csv = [head, ...rows].map((row) => row.map((c) => `"${String(c ?? '').replace(/"/g, '""')}"`).join(',')).join('\r\n');
+            const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob(['﻿' + csv], { type: 'text/csv' })); a.download = `staff-performance-${from}-to-${to}.csv`; a.click();
+        };
+    },
+};
+Router.add('/staff-activity', 'Staff tracking', StaffTrack.page);
+
+/* ===========================================================
+   Super admin: landing page visitors
+   =========================================================== */
+const Visitors = {
+    flag(cc) { return cc && /^[A-Z]{2}$/.test(cc) ? String.fromCodePoint(...[...cc].map((c) => 127397 + c.charCodeAt(0))) + ' ' + cc : 'Unknown'; },
+    async page(view, _p, q) {
+        const days = +q.days || 30;
+        const r = await API.get('/platform/landing/stats', { days });
+        const RANGES = [[1, 'Today'], [7, '7 days'], [30, '30 days'], [90, '90 days'], [365, '1 year']];
+        const stat = (ico, tone, label, value, hint = '') => `<div class="card stat"><div class="ico tone-${tone}">${icon(ico)}</div><div><div class="label">${label}</div><div class="value">${value}</div>${hint ? `<div class="hint">${hint}</div>` : ''}</div></div>`;
+        const conv = r.visitors ? Math.round((r.whatsapp_visitors / r.visitors) * 1000) / 10 : 0;
+        const max = Math.max(1, ...r.series.map((x) => x.views));
+        const every = Math.ceil(r.series.length / 10);
+        const lbl = (x) => (days === 1 ? x.label : fmt.dateShort(x.label));
+        const list = (title, rows, keyFmt = (k) => esc(k || 'Unknown'), extra = false) => `<div class="card mb"><div class="card-head"><h2>${title}</h2></div>${rows.length ? `<div class="table-wrap"><table class="table"><thead><tr><th></th><th>Visitors</th><th>Views</th>${extra ? '<th>WhatsApp</th>' : ''}</tr></thead><tbody>
+            ${rows.map((x) => `<tr><td><b>${keyFmt(x.key)}</b><div class="vbar"><i style="width:${Math.round((x.visitors / Math.max(1, rows[0].visitors)) * 100)}%"></i></div></td><td>${x.visitors}</td><td>${x.views}</td>${extra ? `<td>${x.whatsapp || '—'}</td>` : ''}</tr>`).join('')}</tbody></table></div>` : `<div class="card-body">${emptyHtml('No visits yet')}</div>`}</div>`;
+        const origin = location.origin;
+        view.innerHTML = `<style>.vchart{display:flex;align-items:flex-end;gap:3px;height:190px;padding:1rem 1rem .4rem}.vchart div{flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;height:100%;position:relative}
+            .vchart b{width:100%;background:#c7d2fe;border-radius:4px 4px 0 0;min-height:2px;position:relative}.vchart b i{position:absolute;left:0;right:0;bottom:0;background:var(--indigo,#4f46e5);border-radius:4px 4px 0 0}
+            .vchart small{position:absolute;bottom:-1.3rem;font-size:.68rem;color:#8a90a8;white-space:nowrap}.vbar{height:5px;background:#eef0f7;border-radius:9px;margin-top:5px;max-width:220px}.vbar i{display:block;height:100%;background:var(--indigo,#4f46e5);border-radius:9px}
+            .utm code{background:#f3f4fb;padding:.25rem .45rem;border-radius:6px;font-size:.82rem}</style>
+        <div class="flex between flex-wrap mb"><div class="tabs" style="margin:0">${RANGES.map(([d, l]) => `<button data-d="${d}" class="${d === days ? 'active' : ''}">${l}</button>`).join('')}</div>
+            <a class="btn secondary" href="../" target="_blank" rel="noopener">${icon('external')} Open landing page</a></div>
+        <div class="stats mb">${stat('eye', 'brand', 'Page views', r.views.toLocaleString(), `Today ${r.today.views} · All time ${r.all_time.views.toLocaleString()}`)}
+            ${stat('users', 'info', 'Unique visitors', r.visitors.toLocaleString(), `Today ${r.today.visitors}`)}
+            ${stat('chat', 'ok', 'WhatsApp clicks', r.whatsapp, `${conv}% of visitors clicked`)}
+            ${stat('activity', 'warn', 'Video plays', r.video, `${r.login} login clicks`)}</div>
+        <div class="card mb"><div class="card-head"><h2>${days === 1 ? 'Views by hour (today)' : 'Visitors per day'}</h2><small><span style="color:#4f46e5">■</span> visitors <span style="color:#c7d2fe">■</span> views</small></div>
+            <div class="vchart" style="margin-bottom:1.2rem">${r.series.map((x, i) => `<div title="${esc(lbl(x))}: ${x.views} views${x.visitors !== undefined ? `, ${x.visitors} visitors, ${x.whatsapp} WhatsApp clicks` : ''}"><b style="height:${(x.views / max) * 100}%">${x.visitors !== undefined ? `<i style="height:${x.views ? (x.visitors / x.views) * 100 : 0}%"></i>` : ''}</b>${i % every === 0 ? `<small>${esc(lbl(x))}</small>` : ''}</div>`).join('')}</div></div>
+        <div class="grid-2" style="align-items:start"><div>
+            ${list('Where visitors come from', r.sources, undefined, true)}
+            ${list('Devices', r.devices, (k) => esc(fmt.cap(k || 'unknown')))}
+            ${list('Countries', r.countries, (k) => Visitors.flag(k))}
+        </div><div>
+            <div class="card mb"><div class="card-head"><h2>Latest activity</h2></div>${r.recent.length ? `<div class="table-wrap"><table class="table"><tbody>
+                ${r.recent.map((x) => `<tr><td>${badge(x.event === 'view' ? 'active' : x.event === 'whatsapp' ? 'brand' : 'pending', { view: 'Visited', whatsapp: 'WhatsApp click', video: 'Played video', login: 'Login click' }[x.event] || x.event)}</td>
+                    <td><b>${esc(x.source || '')}</b><br><small>${esc(fmt.cap(x.device || ''))}${x.country ? ' · ' + Visitors.flag(x.country) : ''}${x.referrer ? ' · ' + esc(x.referrer) : ''}</small></td><td><small>${esc(fmt.relative(x.at))}</small></td></tr>`).join('')}</tbody></table></div>` : `<div class="card-body">${emptyHtml('No visits yet')}</div>`}</div>
+            <div class="card mb utm"><div class="card-head"><h2>Know which post brings visitors</h2></div><div class="card-body">
+                <p class="muted" style="margin-top:0">Share these links instead of the plain address. Each visit is then counted under that source.</p>
+                ${[['facebook', 'Facebook posts'], ['whatsapp', 'WhatsApp messages / status'], ['instagram', 'Instagram bio'], ['brochure', 'Brochure / PDF'], ['qr', 'QR code on print']].map(([k, l]) => `<div class="flex between" style="gap:.6rem;margin-bottom:.5rem;align-items:center"><span><small class="muted">${l}</small><br><code>${esc(origin)}/?utm_source=${k}</code></span><button class="btn ghost sm" data-copy="${esc(origin)}/?utm_source=${k}">Copy</button></div>`).join('')}
+                <small class="muted">Visits are counted without cookies. Search engines and link previews are not counted.</small></div></div>
+        </div></div>`;
+        $$('[data-d]', view).forEach((b) => (b.onclick = () => go('/site-visitors', { days: b.dataset.d })));
+        $$('[data-copy]', view).forEach((b) => (b.onclick = async () => { try { await navigator.clipboard.writeText(b.dataset.copy); toast('Link copied.'); } catch (e) { toast(b.dataset.copy); } }));
+    },
+};
+{
+    const base = Platform.activate.bind(Platform);
+    Platform.activate = function () {
+        const was = this.active;
+        base();
+        if (was) return;
+        const i = NAV.findIndex((n) => n[0] === '/landing');
+        NAV.splice(i >= 0 ? i + 1 : NAV.length, 0, ['/site-visitors', 'Landing visitors', 'eye']);
+        Router.add('/site-visitors', 'Landing visitors', Visitors.page);
+    };
+}

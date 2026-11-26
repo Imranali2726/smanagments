@@ -3,7 +3,10 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\PageView;
 use App\Models\PlatformSetting;
+use Carbon\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
@@ -61,6 +64,13 @@ class LandingController extends Controller
     /** The landing page with its content injected, so hidden sections never flash on screen. */
     public static function page()
     {
+        try {
+            if (Schema::hasTable('page_views')) {
+                PageView::record(request(), 'view');
+            }
+        } catch (\Throwable $e) {
+            report($e);
+        }
         $html = file_get_contents(public_path('landing.html'));
         $c = self::content();
         $json = json_encode($c, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_UNESCAPED_UNICODE);
@@ -131,5 +141,68 @@ class LandingController extends Controller
         PlatformSetting::putJson('landing', $save);
 
         return response()->json(['message' => 'Landing page saved.', 'data' => self::content()]);
+    }
+
+    /** Clicks on the landing page (WhatsApp / demo buttons, video, login). */
+    public function event(Request $request): JsonResponse
+    {
+        $request->validate(['event' => 'required|in:whatsapp,video,login', 'ref' => 'nullable|string|max:500', 'utm' => 'nullable|string|max:40', 'path' => 'nullable|string|max:200']);
+        PageView::record($request, $request->input('event'));
+
+        return response()->json(['ok' => true]);
+    }
+
+    /** Visitor numbers for the super admin. */
+    public function stats(Request $request): JsonResponse
+    {
+        $days = (int) ($request->validate(['days' => 'nullable|integer|in:1,7,30,90,365'])['days'] ?? 30);
+        $from = $days === 1 ? now()->startOfDay() : now()->subDays($days - 1)->startOfDay();
+        $base = fn () => PageView::query()->where('created_at', '>=', $from);
+        $views = fn () => $base()->where('event', 'view');
+
+        $count = fn ($q) => (clone $q)->count();
+        $uniq = fn ($q) => (clone $q)->distinct()->count('visitor');
+        $totalViews = $count($views());
+        $visitors = $uniq($views());
+        $clicks = $base()->where('event', '!=', 'view')->groupBy('event')->selectRaw('event, COUNT(*) c, COUNT(DISTINCT visitor) v')->get()->keyBy('event');
+
+        $daily = $views()->groupBy(DB::raw('DATE(created_at)'))->selectRaw('DATE(created_at) d, COUNT(*) views, COUNT(DISTINCT visitor) visitors')->pluck('views', 'd');
+        $dailyV = $views()->groupBy(DB::raw('DATE(created_at)'))->selectRaw('DATE(created_at) d, COUNT(DISTINCT visitor) visitors')->pluck('visitors', 'd');
+        $dailyWa = $base()->where('event', 'whatsapp')->groupBy(DB::raw('DATE(created_at)'))->selectRaw('DATE(created_at) d, COUNT(*) c')->pluck('c', 'd');
+        $series = [];
+        if ($days === 1) {
+            $hours = $views()->groupBy(DB::raw('HOUR(created_at)'))->selectRaw('HOUR(created_at) h, COUNT(*) c')->pluck('c', 'h');
+            for ($h = 0; $h <= now()->hour; $h++) {
+                $series[] = ['label' => sprintf('%02d:00', $h), 'views' => (int) ($hours[$h] ?? 0)];
+            }
+        } else {
+            for ($d = $from->copy(); $d->lte(now()); $d->addDay()) {
+                $k = $d->toDateString();
+                $series[] = ['label' => $k, 'views' => (int) ($daily[$k] ?? 0), 'visitors' => (int) ($dailyV[$k] ?? 0), 'whatsapp' => (int) ($dailyWa[$k] ?? 0)];
+            }
+        }
+        $group = fn ($col) => $views()->groupBy($col)->selectRaw("{$col} k, COUNT(*) views, COUNT(DISTINCT visitor) visitors")->orderByDesc('visitors')->limit(12)->get()
+            ->map(fn ($r) => ['key' => $r->k, 'views' => (int) $r->views, 'visitors' => (int) $r->visitors]);
+        $waBySource = $base()->where('event', 'whatsapp')->groupBy('source')->selectRaw('source, COUNT(*) c')->pluck('c', 'source');
+
+        return response()->json([
+            'days' => $days,
+            'today' => ['views' => PageView::where('event', 'view')->where('created_at', '>=', now()->startOfDay())->count(),
+                'visitors' => PageView::where('event', 'view')->where('created_at', '>=', now()->startOfDay())->distinct()->count('visitor')],
+            'all_time' => ['views' => PageView::where('event', 'view')->count()],
+            'views' => $totalViews,
+            'visitors' => $visitors,
+            'whatsapp' => (int) ($clicks['whatsapp']->c ?? 0),
+            'whatsapp_visitors' => (int) ($clicks['whatsapp']->v ?? 0),
+            'video' => (int) ($clicks['video']->c ?? 0),
+            'login' => (int) ($clicks['login']->c ?? 0),
+            'series' => $series,
+            'sources' => $group('source')->map(fn ($r) => $r + ['whatsapp' => (int) ($waBySource[$r['key']] ?? 0)]),
+            'devices' => $group('device'),
+            'countries' => $group('country'),
+            'referrers' => $views()->whereNotNull('referrer_host')->groupBy('referrer_host')->selectRaw('referrer_host k, COUNT(*) views')->orderByDesc('views')->limit(10)->get(),
+            'recent' => $base()->orderByDesc('id')->limit(25)->get(['event', 'source', 'device', 'country', 'referrer_host', 'created_at'])
+                ->map(fn ($r) => ['event' => $r->event, 'source' => $r->source, 'device' => $r->device, 'country' => $r->country, 'referrer' => $r->referrer_host, 'at' => $r->created_at?->toIso8601String()]),
+        ]);
     }
 }
