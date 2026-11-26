@@ -34,6 +34,14 @@ p { margin: 0 0 1rem; color: var(--ink-2); }
 .btn.amber:hover { background: var(--amber-2); }
 .btn.ghost { background: rgba(255,255,255,.08); color: #fff; border: 1px solid rgba(255,255,255,.22); }
 .btn.ghost:hover { background: rgba(255,255,255,.15); }
+.vidsec { padding-bottom: 40px; }
+.vidbox { position: relative; max-width: 1040px; margin: 0 auto; border-radius: 22px; overflow: hidden; background: #140f3a; box-shadow: 0 30px 80px rgba(27,21,86,.28); aspect-ratio: 16 / 9; }
+.vidbox video { width: 100%; height: 100%; display: block; object-fit: cover; }
+.vidplay { position: absolute; inset: 0; border: 0; cursor: pointer; background: linear-gradient(180deg, rgba(20,15,58,.15), rgba(20,15,58,.55)); color: #fff; font: inherit; font-weight: 800; font-size: 1.1rem; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; }
+.vidplay span { width: 92px; height: 92px; border-radius: 50%; background: var(--amber); color: #1b1300; display: grid; place-items: center; box-shadow: 0 0 0 12px rgba(245,158,11,.25), 0 18px 40px rgba(0,0,0,.35); transition: transform .2s; }
+.vidplay span svg { width: 38px; height: 38px; margin-left: 5px; }
+.vidplay:hover span { transform: scale(1.08); }
+.vidbox.playing .vidplay { display: none; }
 .btn.indigo { background: var(--indigo); color: #fff; }
 .btn.outline { border: 1.5px solid var(--line); color: var(--ink); background: #fff; }
 .btn.outline-light { border: 1.5px solid rgba(255,255,255,.55); color: #fff; background: transparent; }
@@ -248,13 +256,13 @@ footer p { color: #b9b7df; }
         <a class="logo" href="#top"><img src="brand/aas-logo.svg" alt="AAS">AAS <b>School</b> Manager</a>
         <button class="burger" id="burger" aria-label="Menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M3 12h18M3 18h18"/></svg></button>
         <ul>
-            <li><a href="#why">Why AAS</a></li>
-            <li><a href="#new">What's new</a></li>
-            <li><a href="#modules">Modules</a></li>
-            <li><a href="#features">Features</a></li>
-            <li><a href="#portals">Portals</a></li>
-            <li><a href="#pricing">Pricing</a></li>
-            <li><a href="#faq">FAQ</a></li>
+            <li data-sec="why"><a href="#why">Why AAS</a></li>
+            <li data-sec="new"><a href="#new">What's new</a></li>
+            <li data-sec="modules"><a href="#modules">Modules</a></li>
+            <li data-sec="features"><a href="#features">Features</a></li>
+            <li data-sec="portals"><a href="#portals">Portals</a></li>
+            <li data-sec="pricing"><a href="#pricing">Pricing</a></li>
+            <li data-sec="faq"><a href="#faq">FAQ</a></li>
         </ul>
         <div class="actions">
             <a class="btn ghost" href="portal/">Parent / Teacher login</a>
@@ -265,7 +273,7 @@ footer p { color: #b9b7df; }
 
 <main id="top">
 <!-- ================= HERO ================= -->
-<section class="hero">
+<section class="hero" data-sec="hero">
     <div class="wrap">
         <div>
             <span class="eyebrow light">● School management, simplified</span>
@@ -274,7 +282,7 @@ footer p { color: #b9b7df; }
             <div class="cta">
                 <a class="btn amber" href="#contact">Book a free demo
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
-                <a class="btn ghost" href="#modules">Explore modules</a>
+                <a class="btn ghost" href="#video" data-sec="video"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>Watch the video</a>
             </div>
             <div class="chips">
                 <span class="chip"><i></i>22 modules</span>
@@ -306,7 +314,18 @@ footer p { color: #b9b7df; }
 </section>
 
 <!-- ================= WHY ================= -->
-<section id="why">
+<!-- ================= VIDEO ================= -->
+<section id="video" class="vidsec" data-sec="video">
+    <div class="wrap">
+        <div class="head reveal"><span class="eyebrow">See it in action</span><h2>AAS School Manager in 70 seconds</h2><p>Fees, attendance, results, the parent app, multi-campus, and how your school builds its own website from the admin panel.</p></div>
+        <div class="vidbox reveal" id="vidbox">
+            <video id="ovVideo" src="brand/video/aas-overview.mp4" poster="brand/video/aas-overview-poster.jpg" preload="none" playsinline muted></video>
+            <button class="vidplay" id="vidPlay" aria-label="Play video"><span><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></span>Watch the overview</button>
+        </div>
+    </div>
+</section>
+
+<section id="why" data-sec="why">
     <div class="wrap">
         <div class="head reveal"><span class="eyebrow">Why AAS</span><h2>One system instead of registers, spreadsheets and chasing payments</h2><p>Your office, teachers, accounts and parents all work on the same data, so nothing gets entered twice.</p></div>
         <div class="grid4">
@@ -319,7 +338,7 @@ footer p { color: #b9b7df; }
 </section>
 
 <!-- ================= WHAT'S NEW ================= -->
-<section id="new" class="newsec">
+<section id="new" class="newsec" data-sec="new">
     <div class="wrap">
         <div class="head reveal"><span class="eyebrow">What's new</span><h2>More than school software</h2><p>Your own website, all your campuses on one screen, and bank-style login security, included in every plan.</p></div>
 
@@ -374,7 +393,7 @@ footer p { color: #b9b7df; }
 </section>
 
 <!-- ================= MODULES ================= -->
-<section class="modules" id="modules">
+<section class="modules" id="modules" data-sec="modules">
     <div class="wrap">
         <div class="head reveal"><span class="eyebrow">22 modules · 60+ features</span><h2>Every part of the school, covered</h2><p>Pick a category to see what is inside.</p></div>
         <div class="tabs" id="tabs">
@@ -389,7 +408,7 @@ footer p { color: #b9b7df; }
 </section>
 
 <!-- ================= DEEP DIVES ================= -->
-<section id="features">
+<section id="features" data-sec="features">
     <div class="wrap">
         <div class="dive reveal">
             <div class="txt">
@@ -458,7 +477,7 @@ footer p { color: #b9b7df; }
 </section>
 
 <!-- ================= PORTALS ================= -->
-<section class="portals" id="portals">
+<section class="portals" id="portals" data-sec="portals">
     <div class="wrap">
         <div class="head reveal"><span class="eyebrow light">Three logins, one system</span><h2>A screen for everyone at school</h2><p>Each person sees only what they need, on a phone or a computer.</p></div>
         <div class="pgrid">
@@ -479,7 +498,7 @@ footer p { color: #b9b7df; }
 </section>
 
 <!-- ================= STEPS ================= -->
-<section>
+<section id="steps" data-sec="steps">
     <div class="wrap">
         <div class="head reveal"><span class="eyebrow">Getting started</span><h2>Live in days, not months</h2></div>
         <div class="steps">
@@ -491,7 +510,7 @@ footer p { color: #b9b7df; }
 </section>
 
 <!-- ================= PRICING ================= -->
-<section class="pricing" id="pricing">
+<section class="pricing" id="pricing" data-sec="pricing">
     <div class="wrap">
         <div class="head reveal"><span class="eyebrow">Pricing</span><h2>Simple per-student pricing</h2><p>All plans include all 22 modules, the parent and teacher portals, support and training.</p></div>
         <div class="plans" id="plans"></div>
@@ -505,7 +524,7 @@ footer p { color: #b9b7df; }
 </section>
 
 <!-- ================= FAQ ================= -->
-<section id="faq">
+<section id="faq" data-sec="faq">
     <div class="wrap">
         <div class="head reveal"><span class="eyebrow">FAQ</span><h2>Questions schools usually ask</h2></div>
         <div class="faq">
@@ -522,7 +541,7 @@ footer p { color: #b9b7df; }
 </section>
 
 <!-- ================= CTA ================= -->
-<div class="cta-band" id="contact">
+<div class="cta-band" id="contact" data-sec="contact">
     <div class="wrap">
         <div class="cta-box reveal">
             <div><h2>Ready to run your school the easy way?</h2><p>Book a free demo and we will show AAS School Manager with your own classes and fee structure.</p>
@@ -543,16 +562,17 @@ footer p { color: #b9b7df; }
         <div class="fgrid">
             <div><a class="logo" href="#top"><img src="brand/aas-logo.svg" alt="AAS">AAS <b>School</b> Manager</a>
                 <p style="margin-top:1rem;max-width:340px">All-in-one school management software for admissions, academics, fees, HR and campus resources, with portals for parents and teachers.</p></div>
-            <div><h4>Product</h4><ul><li><a href="#modules">Modules</a></li><li><a href="#features">Features</a></li><li><a href="#pricing">Pricing</a></li><li><a href="#faq">FAQ</a></li></ul></div>
+            <div><h4>Product</h4><ul><li data-sec="modules"><a href="#modules">Modules</a></li><li data-sec="features"><a href="#features">Features</a></li><li data-sec="pricing"><a href="#pricing">Pricing</a></li><li data-sec="faq"><a href="#faq">FAQ</a></li></ul></div>
             <div><h4>Login</h4><ul><li><a href="admin/">Admin panel</a></li><li><a href="portal/">Teacher portal</a></li><li><a href="portal/">Parent portal</a></li><li><a href="portal/#/apply">Online admission</a></li></ul></div>
-            <div><h4>Contact</h4><ul><li data-c="phone"></li><li>WhatsApp (demo): <span data-c="whatsapp2Show"></span></li><li data-c="email"></li><li data-c="address"></li></ul></div>
+            <div><h4>Contact</h4><ul><li data-c="phone"></li><li id="fWhats2">WhatsApp (demo): <span data-c="whatsapp2Show"></span></li><li data-c="email"></li><li data-c="address"></li></ul></div>
         </div>
         <div class="copy"><span>© <span id="yr"></span> AAS School Manager. All rights reserved.</span><span>Made in Pakistan</span></div>
     </div>
 </footer>
 
+<script src="brand/landing-text.js"></script>
 <script>
-/* ======= EDIT YOUR DETAILS HERE ======= */
+/* Defaults. On the live site these are replaced by what the super admin saves (Super admin → Landing page). */
 const CONFIG = {
     phone: '+92 300 9712726',
     whatsapp: '923009712726',          // WhatsApp number, digits only with country code
@@ -594,6 +614,19 @@ const MODULES = [
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
 
+const L = window.LANDING;
+if (!L && /landing\.html$/.test(location.pathname)) location.replace('./');
+const md = (t) => window.LandingText.fromMark(t || '');
+if (L) {
+    LandingText.apply(document, L.text);
+    Object.assign(CONFIG, L.contact || {});
+    if (Array.isArray(L.plans)) CONFIG.plans = L.plans;
+    if (Array.isArray(L.pricing_notes)) $('.pnotes').innerHTML = L.pricing_notes.map((n) => `<span>${md(n)}</span>`).join('');
+    if (Array.isArray(L.faqs)) $('.faq').innerHTML = L.faqs.map((f) => `<details><summary>${LandingText.esc(f.q)}</summary><p>${md(f.a)}</p></details>`).join('');
+    // a hidden contact band: send "Book a demo" style links straight to WhatsApp
+    if (L.sections && L.sections.contact === false) $$('a[href="#contact"]').forEach((a) => { a.dataset.wa = '1'; });
+}
+
 $('#mgrid').innerHTML = MODULES.map(([cat, name, text, color, path]) => `
     <div class="mod" data-cat="${cat}"><div class="ico" style="background:${color}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="${path}"/></svg></div>
     <div><h3>${name}</h3><p>${text}</p></div></div>`).join('');
@@ -602,21 +635,26 @@ $$('#tabs button').forEach((b) => b.onclick = () => {
     $$('.mod').forEach((m) => m.classList.toggle('hide', b.dataset.cat !== 'all' && m.dataset.cat !== b.dataset.cat));
 });
 
+const E = (t) => LandingText.esc(t ?? '');
 $('#plans').innerHTML = CONFIG.plans.map((p) => `
     <div class="plan reveal ${p.popular ? 'pop' : ''}">${p.popular ? '<span class="tag">Most popular</span>' : ''}
-        <h3>${p.name}</h3><small style="color:var(--ink-3)">${p.students}</small>
-        <div class="price">Rs ${p.price}<small> / student / month</small></div>
-        <ul>${p.items.map((i) => `<li>${i}</li>`).join('')}</ul>
+        <h3>${E(p.name)}</h3><small style="color:var(--ink-3)">${E(p.students)}</small>
+        <div class="price">Rs ${E(p.price)}<small> / student / month</small></div>
+        <ul>${(p.items || []).map((i) => `<li>${E(i)}</li>`).join('')}</ul>
         <a class="btn ${p.popular ? 'indigo' : 'outline'}" href="#contact">Get started</a></div>`).join('');
 
-const showNum = (n) => '+' + n.slice(0, 2) + ' ' + n.slice(2, 5) + ' ' + n.slice(5);
+const showNum = (n) => (n ? '+' + n.slice(0, 2) + ' ' + n.slice(2, 5) + ' ' + n.slice(5) : '');
 CONFIG.whatsappShow = showNum(CONFIG.whatsapp); CONFIG.whatsapp2Show = showNum(CONFIG.whatsapp2);
+if (!CONFIG.whatsapp2) $$('#cWhats2, #demoBtn2, #fWhats2').forEach((el) => (el.style.display = 'none'));
+if (!CONFIG.email) $$('#cMail, [data-c="email"]').forEach((el) => (el.style.display = 'none'));
 $$('[data-c]').forEach((el) => (el.textContent = CONFIG[el.dataset.c]));
 const waLink = (n) => `https://wa.me/${n}?text=${encodeURIComponent('Assalam o Alaikum, I would like a demo of AAS School Manager.')}`;
 [['#cWhats', CONFIG.whatsapp], ['#demoBtn', CONFIG.whatsapp], ['#cWhats2', CONFIG.whatsapp2], ['#demoBtn2', CONFIG.whatsapp2]].forEach(([id, n]) => { $(id).href = waLink(n); $(id).target = '_blank'; $(id).rel = 'noopener'; });
 $('#cPhone').href = 'tel:' + CONFIG.phone.replace(/\s/g, '');
 $('#cMail').href = `mailto:${CONFIG.email}?subject=${encodeURIComponent('AAS School Manager demo')}`;
+$$('a[data-wa]').forEach((a) => { a.href = waLink(CONFIG.whatsapp); a.target = '_blank'; a.rel = 'noopener'; });
 $('#yr').textContent = new Date().getFullYear();
+$('#vidPlay').onclick = () => { const v = $('#ovVideo'); $('#vidbox').classList.add('playing'); v.controls = true; v.play(); };
 
 const nav = $('#nav');
 const onScroll = () => nav.classList.toggle('solid', scrollY > 30);

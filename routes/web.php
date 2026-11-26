@@ -4,7 +4,9 @@ use Illuminate\Support\Facades\Route;
 
 // Public landing page of AAS School Manager.
 // On a school's sub-domain the root opens that school's own website (edited from its admin panel).
-Route::get('/', fn () => response()->file(public_path(\App\Support\Tenant::id() ? 'site.html' : 'landing.html')));
+Route::get('/', fn () => \App\Support\Tenant::id()
+    ? response()->file(public_path('site.html'))
+    : \App\Http\Controllers\Api\LandingController::page());
 
 // A school's website on the main domain (local testing): /site?school=<subdomain>
 Route::get('/site', fn () => response()->file(public_path('site.html')));

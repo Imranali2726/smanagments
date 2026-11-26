@@ -2872,3 +2872,143 @@ Pages.security = async function (view) {
     }
     if (!ICONS.lock) ICONS.lock = '<rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>';
 }
+
+/* ===========================================================
+   Super admin: main landing page (aasschoolmanager.com)
+   =========================================================== */
+const Landing = {
+    SEC_LABELS: { hero: 'Top banner', video: 'Overview video', why: 'Why AAS', new: "What's new", modules: 'Modules', features: 'Features', portals: 'Portals (three logins)', steps: 'Getting started', pricing: 'Pricing', faq: 'FAQ', contact: 'Contact / Book a demo' },
+
+    async page(view) {
+        const [r, html] = await Promise.all([API.get('/platform/landing'), fetch('../landing.html', { cache: 'no-store' }).then((x) => x.text())]);
+        const c = r.data;
+        const doc = new DOMParser().parseFromString(html, 'text/html');
+        const nodes = LandingText.nodes(doc);
+        const texts = c.text || {};
+        // current value of every text: the saved edit if it still matches the page, otherwise the page's own wording
+        const val = {};
+        nodes.forEach((n) => { const o = texts[n.key]; val[n.key] = o && o.from === n.text && typeof o.to === 'string' && o.to !== '' ? o.to : n.text; });
+        const L = Landing, S = L.SEC_LABELS;
+        const order = ['hero', ...r.sections];
+        const card = (title, sub, body, extra = '') => `<div class="card mb" ${extra}><div class="card-head"><div><h2>${title}</h2>${sub ? `<small>${sub}</small>` : ''}</div></div><div class="card-body form">${body}</div></div>`;
+        const textField = (n) => {
+            const v = val[n.key], long = n.text.length > 70 || n.kind === 'Text';
+            const changed = v !== n.text;
+            return `<div class="field lp-t ${changed ? 'changed' : ''}" data-key="${n.key}"><span>${esc(n.kind)}<button type="button" class="lp-reset" title="Use the original text">Original</button></span>
+                ${long ? `<textarea data-t="${n.key}" rows="${Math.min(5, Math.ceil(v.length / 70) + 1)}">${esc(v)}</textarea>` : `<input data-t="${n.key}" value="${esc(v)}">`}</div>`;
+        };
+        const plans = (c.plans || []).map((p) => ({ ...p, items: [...(p.items || [])] }));
+        let faqs = Array.isArray(c.faqs) ? c.faqs.map((f) => ({ ...f })) : [...doc.querySelectorAll('#faq details')].map((d) => ({ q: d.querySelector('summary').textContent.trim(), a: LandingText.toMark(d.querySelector('p')) }));
+
+        view.innerHTML = `<div id="lpRoot"><style>
+            .lp-t > span{display:flex;justify-content:space-between;align-items:center}.lp-reset{display:none;border:0;background:none;color:var(--indigo,#4f46e5);font:inherit;font-size:.78rem;font-weight:700;cursor:pointer}
+            .lp-t.changed > span .lp-reset{display:inline}.lp-t.changed input,.lp-t.changed textarea{border-color:#a5b4fc;background:#f5f7ff}
+            .lp-sec{display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:.55rem 0;border-bottom:1px solid var(--line,#e5e7eb)}.lp-sec:last-child{border:0}
+            .lp-sec b{font-weight:600}.lp-row{border:1px solid var(--line,#e5e7eb);border-radius:14px;padding:.9rem 1rem;margin-bottom:.7rem;position:relative;background:#fafbff}
+            .lp-row .rm{position:absolute;right:.5rem;top:.5rem}.lp-off{opacity:.55}
+            .lp-save{position:sticky;bottom:0;z-index:5;background:rgba(255,255,255,.95);backdrop-filter:blur(6px);border-top:1px solid var(--line,#e5e7eb);padding:.9rem 0;display:flex;justify-content:flex-end;gap:.6rem;margin-top:.5rem}
+            details.lp-d{border:1px solid var(--line,#e5e7eb);border-radius:14px;margin-bottom:.7rem;background:#fff}details.lp-d>summary{cursor:pointer;padding:.9rem 1rem;font-weight:700;display:flex;justify-content:space-between}
+            details.lp-d>div{padding:0 1rem 1rem}</style>
+        <div class="card mb"><div class="card-body" style="display:flex;gap:1rem;align-items:center;justify-content:space-between;flex-wrap:wrap">
+            <div><div class="muted"><small>Main website of AAS School Manager</small></div><b>${esc(location.origin)}/</b></div>
+            <a class="btn secondary" href="../" target="_blank" rel="noopener">${icon('external')} View landing page</a></div></div>
+        <div class="grid-2" style="align-items:start"><div>
+            ${card('Sections', 'Turn parts of the landing page on or off. Menu links of hidden sections are hidden too.', order.map((k) => `<div class="lp-sec"><b>${esc(S[k] || k)}</b>${k === 'hero'
+                ? '<small class="muted">Always shown</small>'
+                : `<label class="check"><input type="checkbox" data-sec="${k}" ${c.sections[k] ? 'checked' : ''}> Show</label>`}</div>`).join(''))}
+            ${card('Contact details', 'Used in the "Book a free demo" buttons, contact box and footer.', `
+                <div class="form-row">${field('Phone', `<input data-c="phone" value="${esc(c.contact.phone || '')}">`)}${field('Email (leave empty to hide)', `<input data-c="email" type="email" value="${esc(c.contact.email || '')}">`)}</div>
+                <div class="form-row">${field('WhatsApp (digits, with 92)', `<input data-c="whatsapp" value="${esc(c.contact.whatsapp || '')}" placeholder="923001234567">`)}${field('Second WhatsApp for demos (optional)', `<input data-c="whatsapp2" value="${esc(c.contact.whatsapp2 || '')}" placeholder="923001234567">`)}</div>
+                ${field('Address', `<input data-c="address" value="${esc(c.contact.address || '')}">`)}`)}
+            ${card('Pricing plans', 'Shown only when the Pricing section is on.', '<div id="lpPlans"></div>', 'id="lpPricing"')}
+            ${card('Pricing notes', 'One note per line, shown under the plans. Use **bold** for a heading.', `<textarea id="lpNotes" rows="4">${esc((c.pricing_notes || []).join('\n'))}</textarea>`)}
+            ${card('FAQ', 'Questions shown in the FAQ section.', '<div id="lpFaq"></div>')}
+        </div><div>
+            <div class="card mb"><div class="card-body"><b>Texts</b><p class="muted" style="margin:.3rem 0 0">Change any heading or text. Write <b>*words*</b> for the yellow / coloured highlight and <b>**words**</b> for bold. Changed texts are marked blue; click <i>Original</i> to undo.</p></div></div>
+            ${order.map((k) => { const list = nodes.filter((n) => n.sec === k); if (!list.length) return '';
+                return `<details class="lp-d ${k !== 'hero' && !c.sections[k] ? 'lp-off' : ''}" data-box="${k}" ${k === 'hero' ? 'open' : ''}><summary>${esc(S[k] || k)} <small class="muted">${list.length} texts</small></summary><div class="form">${list.map(textField).join('')}</div></details>`; }).join('')}
+        </div></div>
+        <div class="lp-save"><a class="btn secondary" href="../" target="_blank" rel="noopener">${icon('external')} View</a><button class="btn" id="lpSave" data-busy="Saving…">${icon('check')} Save landing page</button></div></div>`;
+        const root = $('#lpRoot', view);
+
+        // texts: mark changed / reset
+        root.addEventListener('input', (e) => {
+            const k = e.target.dataset.t; if (!k) return;
+            const n = nodes.find((x) => x.key === k);
+            e.target.closest('.lp-t').classList.toggle('changed', e.target.value.trim() !== n.text);
+        });
+        $$('.lp-reset', root).forEach((b) => (b.onclick = () => {
+            const box = b.closest('.lp-t'), n = nodes.find((x) => x.key === box.dataset.key), inp = $('[data-t]', box);
+            inp.value = n.text; box.classList.remove('changed');
+        }));
+        $$('[data-sec]', root).forEach((cb) => (cb.onchange = () => { const d = $(`[data-box="${cb.dataset.sec}"]`, root); if (d) d.classList.toggle('lp-off', !cb.checked); }));
+
+        // plans
+        const drawPlans = () => {
+            const box = $('#lpPlans', root);
+            box.innerHTML = plans.map((p, i) => `<div class="lp-row"><button type="button" class="btn ghost sm rm" data-pdel="${i}" title="Remove">${icon('trash')}</button>
+                <div class="form-row">${field('Plan name', `<input data-pp="${i}.name" value="${esc(p.name)}">`)}${field('Price (Rs / student / month)', `<input type="number" min="0" data-pp="${i}.price" value="${esc(p.price)}">`)}</div>
+                ${field('Students', `<input data-pp="${i}.students" value="${esc(p.students || '')}" placeholder="e.g. Up to 150 students">`)}
+                ${field('What is included (one per line)', `<textarea rows="4" data-pp="${i}.items">${esc((p.items || []).join('\n'))}</textarea>`)}
+                <label class="check"><input type="checkbox" data-pp="${i}.popular" ${p.popular ? 'checked' : ''}> Mark as "Most popular"</label></div>`).join('')
+                + (plans.length < 6 ? `<button type="button" class="btn secondary sm" id="lpPlanAdd">${icon('plus')} Add plan</button>` : '');
+            $$('[data-pdel]', box).forEach((b) => (b.onclick = () => { plans.splice(+b.dataset.pdel, 1); drawPlans(); }));
+            const add = $('#lpPlanAdd', box); if (add) add.onclick = () => { plans.push({ name: '', students: '', price: 0, popular: false, items: [] }); drawPlans(); };
+            $$('[data-pp]', box).forEach((el) => {
+                const [i, f] = el.dataset.pp.split('.');
+                el.oninput = el.onchange = () => { plans[+i][f] = f === 'popular' ? el.checked : f === 'items' ? el.value.split('\n') : f === 'price' ? +el.value : el.value; };
+            });
+        };
+        drawPlans();
+
+        // faq
+        const drawFaq = () => {
+            const box = $('#lpFaq', root);
+            box.innerHTML = faqs.map((f, i) => `<div class="lp-row"><button type="button" class="btn ghost sm rm" data-fdel="${i}" title="Remove">${icon('trash')}</button>
+                ${field('Question', `<input data-ff="${i}.q" value="${esc(f.q)}">`)}${field('Answer', `<textarea rows="3" data-ff="${i}.a">${esc(f.a)}</textarea>`)}
+                <div class="flex" style="gap:.4rem">${i > 0 ? `<button type="button" class="btn ghost sm" data-fup="${i}">↑ Move up</button>` : ''}</div></div>`).join('')
+                + `<button type="button" class="btn secondary sm" id="lpFaqAdd">${icon('plus')} Add question</button>`;
+            $$('[data-fdel]', box).forEach((b) => (b.onclick = () => { faqs.splice(+b.dataset.fdel, 1); drawFaq(); }));
+            $$('[data-fup]', box).forEach((b) => (b.onclick = () => { const i = +b.dataset.fup; [faqs[i - 1], faqs[i]] = [faqs[i], faqs[i - 1]]; drawFaq(); }));
+            $('#lpFaqAdd', box).onclick = () => { faqs.push({ q: '', a: '' }); drawFaq(); $$('input', box).pop()?.focus(); };
+            $$('[data-ff]', box).forEach((el) => { const [i, f] = el.dataset.ff.split('.'); el.oninput = () => { faqs[+i][f] = el.value; }; });
+        };
+        drawFaq();
+
+        // save
+        $('#lpSave', root).onclick = (e) => busy(e.currentTarget, async () => {
+            const text = {};
+            $$('[data-t]', root).forEach((el) => {
+                const n = nodes.find((x) => x.key === el.dataset.t), v = el.value.trim();
+                if (v && v !== n.text) text[n.key] = { from: n.text, to: v };
+            });
+            const contact = {}; $$('[data-c]', root).forEach((el) => (contact[el.dataset.c] = el.value.trim().replace(el.dataset.c.startsWith('whatsapp') ? /\D/g : /^$/, '')));
+            const sections = {}; $$('input[data-sec]', root).forEach((cb) => (sections[cb.dataset.sec] = cb.checked));
+            const payload = {
+                sections, text, contact,
+                plans: plans.map((p) => ({ ...p, items: (p.items || []).map((x) => x.trim()).filter(Boolean) })),
+                pricing_notes: $('#lpNotes', root).value.split('\n').map((x) => x.trim()).filter(Boolean),
+                faqs: faqs.filter((f) => f.q.trim() || f.a.trim()),
+            };
+            try {
+                const res = await API.put('/platform/landing', payload);
+                toast(res.message);
+            } catch (err) {
+                const first = err.errors ? Object.values(err.errors)[0]?.[0] : null;
+                toast(first || err.message, 'error');
+            }
+        });
+    },
+};
+{
+    const base = Platform.activate.bind(Platform);
+    Platform.activate = function () {
+        const was = this.active;
+        base();
+        if (was) return;
+        const i = NAV.findIndex((n) => n[0] === 'section' && n[1] === 'My account');
+        const entry = [['section', 'Website'], ['/landing', 'Landing page', 'globe']];
+        if (i >= 0) NAV.splice(i, 0, ...entry); else NAV.push(...entry);
+        Router.add('/landing', 'Landing page', Landing.page);
+    };
+}
