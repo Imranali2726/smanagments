@@ -98,14 +98,6 @@ p { margin: 0 0 1rem; color: var(--ink-2); }
 section { padding: 96px 0; }
 .head { text-align: center; max-width: 720px; margin: 0 auto 3rem; }
 .head p { font-size: 1.05rem; }
-.newsec { background: linear-gradient(180deg, #f7f7ff, #fff); }
-.newtag { display: inline-block; margin-left: .4rem; padding: .1rem .5rem; border-radius: 99px; background: var(--amber); color: #1b1300; font-size: .68rem; font-weight: 800; letter-spacing: .04em; vertical-align: middle; }
-.shot { border-radius: 18px; overflow: hidden; background: #fff; border: 1px solid var(--line); box-shadow: 0 30px 70px rgba(21,18,58,.18); }
-.shot .bar { display: flex; align-items: center; gap: .4rem; padding: .6rem .9rem; background: #eef0f7; font-size: .78rem; color: #6b7090; font-weight: 600; }
-.shot .bar i { width: 10px; height: 10px; border-radius: 50%; background: #f87171; display: block; }
-.shot .bar i:nth-child(2) { background: #fbbf24; } .shot .bar i:nth-child(3) { background: #34d399; }
-.shot .bar span { margin-left: .6rem; background: #fff; padding: .15rem .7rem; border-radius: 8px; }
-.shot img { display: block; width: 100%; height: auto; }
 .grid4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1.2rem; }
 .card { background: #fff; border: 1px solid var(--line); border-radius: var(--r); padding: 1.6rem; box-shadow: var(--shadow); }
 .why .card { position: relative; overflow: hidden; }
@@ -245,7 +237,6 @@ footer p { color: #b9b7df; }
         <button class="burger" id="burger" aria-label="Menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M3 12h18M3 18h18"/></svg></button>
         <ul>
             <li><a href="#why">Why AAS</a></li>
-            <li><a href="#new">What's new</a></li>
             <li><a href="#modules">Modules</a></li>
             <li><a href="#features">Features</a></li>
             <li><a href="#portals">Portals</a></li>
@@ -266,20 +257,18 @@ footer p { color: #b9b7df; }
         <div>
             <span class="eyebrow light">● School management, simplified</span>
             <h1>Everything your school runs on, <em>in one place.</em></h1>
-            <p class="lead">Admissions, attendance, exams, fees, payroll, library, transport and hostel, plus a portal where parents and teachers stay connected, and a ready-made website for your school. Built for schools in Pakistan.</p>
+            <p class="lead">Admissions, attendance, exams, fees, payroll, library, transport and hostel, plus a portal where parents and teachers stay connected. Built for schools in Pakistan.</p>
             <div class="cta">
                 <a class="btn amber" href="#contact">Book a free demo
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
                 <a class="btn ghost" href="#modules">Explore modules</a>
             </div>
             <div class="chips">
-                <span class="chip"><i></i>22 modules</span>
+                <span class="chip"><i></i>18 modules</span>
                 <span class="chip"><i></i>50+ features</span>
                 <span class="chip"><i></i>Parent &amp; teacher portal</span>
                 <span class="chip"><i></i>SMS &amp; WhatsApp alerts</span>
-                <span class="chip"><i></i>Your own school website</span>
-                <span class="chip"><i></i>Multi-campus</span>
-                <span class="chip"><i></i>Two-factor login</span>
+                <span class="chip"><i></i>PDF &amp; Excel export</span>
             </div>
         </div>
         <div class="mock" aria-hidden="true">
@@ -314,70 +303,15 @@ footer p { color: #b9b7df; }
     </div>
 </section>
 
-<!-- ================= WHAT'S NEW ================= -->
-<section id="new" class="newsec">
-    <div class="wrap">
-        <div class="head reveal"><span class="eyebrow">What's new</span><h2>More than school software</h2><p>Your own website, all your campuses on one screen, and bank-style login security, included in every plan.</p></div>
-
-        <div class="dive reveal">
-            <div class="txt">
-                <span class="eyebrow">School website <span class="newtag">New</span></span>
-                <h2>Every school gets its own website, ready on day one</h2>
-                <p>Your school opens at its own address, for example <b>yourschool.aasschoolmanager.com</b>, with a modern, mobile-friendly website that you update yourself from the admin panel.</p>
-                <ul class="ticks">
-                    <li>Your colours, logo, photos, principal's message, programs, facilities and gallery</li>
-                    <li>Latest notices and upcoming events appear automatically from the school calendar</li>
-                    <li>Live numbers (students, teachers, classes) and parent reviews</li>
-                    <li>"Apply for admission" and "Parent login" buttons, WhatsApp button and Google map</li>
-                </ul>
-                <a class="btn indigo" href="#contact">See it in a demo</a>
-            </div>
-            <div class="shot"><div class="bar"><i></i><i></i><i></i><span>yourschool.aasschoolmanager.com</span></div><img src="brand/screens/school-website.jpg" alt="A school website made with AAS School Manager" loading="lazy"></div>
-        </div>
-
-        <div class="dive flip reveal">
-            <div class="txt">
-                <span class="eyebrow">Multi-campus <span class="newtag">New</span></span>
-                <h2>One owner, every campus, one screen</h2>
-                <p>Running more than one campus or branch? Each campus keeps its own data, staff and admin, and the owner sees all of them together.</p>
-                <ul class="ticks">
-                    <li>Students, attendance, fee collection and dues of all campuses side by side</li>
-                    <li>Campus comparison table and monthly collection chart</li>
-                    <li>Open any campus in one click and work as its admin</li>
-                    <li>Separate campus addresses, logins and websites</li>
-                </ul>
-                <a class="btn indigo" href="#contact">Talk to us about your campuses</a>
-            </div>
-            <div class="shot"><div class="bar"><i></i><i></i><i></i><span>Group overview</span></div><img src="brand/screens/owner-dashboard.jpg" alt="Owner dashboard comparing campuses" loading="lazy"></div>
-        </div>
-
-        <div class="dive reveal">
-            <div class="txt">
-                <span class="eyebrow">Security <span class="newtag">New</span></span>
-                <h2>Two-factor login keeps your school's data safe</h2>
-                <p>Turn on two-step login with Google Authenticator or Microsoft Authenticator. Even if someone learns a password, they cannot sign in without the phone.</p>
-                <ul class="ticks">
-                    <li>Available for owners, principals, staff, teachers and parents</li>
-                    <li>Recovery codes for a lost phone, and admin reset for staff</li>
-                    <li>Every school address is served over secure HTTPS</li>
-                    <li>Each person only sees what their role allows; each school's data is kept separate</li>
-                </ul>
-                <a class="btn indigo" href="#contact">Book a free demo</a>
-            </div>
-            <div class="shot"><div class="bar"><i></i><i></i><i></i><span>My account &amp; security</span></div><img src="brand/screens/two-factor.jpg" alt="Two-factor login setup" loading="lazy"></div>
-        </div>
-    </div>
-</section>
-
 <!-- ================= MODULES ================= -->
 <section class="modules" id="modules">
     <div class="wrap">
-        <div class="head reveal"><span class="eyebrow">22 modules · 60+ features</span><h2>Every part of the school, covered</h2><p>Pick a category to see what is inside.</p></div>
+        <div class="head reveal"><span class="eyebrow">18 modules · 50+ features</span><h2>Every part of the school, covered</h2><p>Pick a category to see what is inside.</p></div>
         <div class="tabs" id="tabs">
-            <button class="on" data-cat="all">All <span>22</span></button>
-            <button data-cat="aca">Academics <span>8</span></button>
+            <button class="on" data-cat="all">All <span>18</span></button>
+            <button data-cat="aca">Academics <span>6</span></button>
             <button data-cat="fin">Finance <span>4</span></button>
-            <button data-cat="adm">Administration <span>6</span></button>
+            <button data-cat="adm">Administration <span>4</span></button>
             <button data-cat="cam">Campus <span>4</span></button>
         </div>
         <div class="mgrid" id="mgrid"></div>
@@ -460,7 +394,7 @@ footer p { color: #b9b7df; }
         <div class="pgrid">
             <div class="pcard reveal"><div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 2 8l10 5 10-5z"/><path d="M6 10.5V15c0 1.7 2.7 3.5 6 3.5s6-1.8 6-3.5v-4.5"/></svg></div>
                 <h3>Admin panel</h3><p>For the principal, office and accounts.</p>
-                <ul><li>All 22 modules and reports</li><li>Admissions, fees, payroll</li><li>Settings, users and roles</li></ul>
+                <ul><li>All 18 modules and reports</li><li>Admissions, fees, payroll</li><li>Settings, users and roles</li></ul>
                 <a class="btn amber" href="admin/">Open admin panel</a></div>
             <div class="pcard reveal"><div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3h6v1M9 11h6M9 15h4"/></svg></div>
                 <h3>Teacher portal</h3><p>Everything a teacher does in a day.</p>
@@ -489,7 +423,7 @@ footer p { color: #b9b7df; }
 <!-- ================= PRICING ================= -->
 <section class="pricing" id="pricing">
     <div class="wrap">
-        <div class="head reveal"><span class="eyebrow">Pricing</span><h2>Simple per-student pricing</h2><p>All plans include all 22 modules, the parent and teacher portals, support and training.</p></div>
+        <div class="head reveal"><span class="eyebrow">Pricing</span><h2>Simple per-student pricing</h2><p>All plans include all 18 modules, the parent and teacher portals, support and training.</p></div>
         <div class="plans" id="plans"></div>
         <div class="enterprise reveal"><p><b>More than 500 students or a school chain?</b> Get custom pricing, a dedicated account manager and on-site training.</p><a class="btn indigo" href="#contact">Talk to us</a></div>
     </div>
@@ -501,9 +435,7 @@ footer p { color: #b9b7df; }
         <div class="head reveal"><span class="eyebrow">FAQ</span><h2>Questions schools usually ask</h2></div>
         <div class="faq">
             <details><summary>How long does setup take?</summary><p>Most schools are running within a few days. Classes, fee structure and the student list can all be added in bulk, and we help with the first import.</p></details>
-            <details><summary>Is our data safe?</summary><p>Every user has their own login and role, so teachers, accountants and parents only see what they are allowed to. Each school's data is kept separate, every address uses secure HTTPS, passwords are encrypted, and anyone can turn on two-factor login with an authenticator app. You can export your data at any time.</p></details>
-            <details><summary>Do we get our own website?</summary><p>Yes. Every school gets a website at its own address, for example yourschool.aasschoolmanager.com. You change the text, colours, photos, principal's message and gallery from the admin panel, and notices and events appear on it automatically.</p></details>
-            <details><summary>We have more than one campus. Can the owner see all of them?</summary><p>Yes. Each campus works on its own with its own admin and data, and the owner gets one login that shows all campuses together and can open any campus.</p></details>
+            <details><summary>Is our data safe?</summary><p>Every user has their own login and role, so teachers, accountants and parents only see what they are allowed to. Passwords are encrypted and you can export your data at any time.</p></details>
             <details><summary>Can parents and teachers use it on their phones?</summary><p>Yes. The portal works in any mobile browser, so parents and teachers do not need to install anything.</p></details>
             <details><summary>Can we send SMS and WhatsApp messages?</summary><p>Yes. Absence alerts, fee reminders and general notices can go out by SMS, WhatsApp or both, once your SMS / WhatsApp account is connected.</p></details>
             <details><summary>Can parents pay fees online?</summary><p>Parents see your bank, JazzCash or Easypaisa account in their portal, pay, and upload the proof. You approve it and the receipt is issued automatically.</p></details>
@@ -544,12 +476,12 @@ footer p { color: #b9b7df; }
 <script>
 /* ======= EDIT YOUR DETAILS HERE ======= */
 const CONFIG = {
-    phone: '+92 300 9712726',
-    whatsapp: '923009712726',          // WhatsApp number, digits only with country code
+    phone: '+92 300 0000000',          // TODO: your phone number
+    whatsapp: '923000000000',          // TODO: WhatsApp number, digits only with country code
     email: 'info@aasschoolmanager.com',// TODO: your email
     address: 'Lahore, Pakistan',       // TODO: your office address
     plans: [                           // TODO: your prices (per student per month)
-        { name: 'Starter', students: 'Up to 150 students', price: 25, items: ['All 22 modules', 'Parent & teacher portal', 'Email & WhatsApp support', 'Online training'] },
+        { name: 'Starter', students: 'Up to 150 students', price: 25, items: ['All 18 modules', 'Parent & teacher portal', 'Email & WhatsApp support', 'Online training'] },
         { name: 'Growth', students: 'Up to 350 students', price: 18, popular: true, items: ['Everything in Starter', 'SMS & WhatsApp alerts setup', 'Data import by our team', 'Priority support'] },
         { name: 'Campus', students: 'Up to 500 students', price: 12, items: ['Everything in Growth', 'On-site training if needed', 'Custom report formats', 'Dedicated support person'] },
     ],
@@ -562,8 +494,6 @@ const MODULES = [
     ['aca', 'Attendance', 'Daily student and staff attendance, absence SMS and monthly registers.', '#4f46e5', 'M20 6 9 17l-5-5'],
     ['aca', 'Homework', 'Assign homework online and track submissions and evaluation.', '#4f46e5', 'M4 4.5A2.5 2.5 0 0 1 6.5 2H20v17H6.5A2.5 2.5 0 0 0 4 21.5zM4 19.5A2.5 2.5 0 0 1 6.5 17H20'],
     ['aca', 'Download Center', 'Share syllabus, assignments, notes and circulars with classes.', '#4f46e5', 'M12 3v12m0 0 4.5-4.5M12 15l-4.5-4.5M4 17v3h16v-3'],
-    ['aca', 'School Calendar & Events', 'Holidays, exams, meetings and events, shown to parents and teachers.', '#4f46e5', 'M3 4.5h18v16.5H3zM3 9.5h18M8 2.5v4M16 2.5v4M8 14h2M14 14h2M8 17.5h2'],
-    ['aca', 'Behaviour & Remarks', 'Positive notes and concerns about each student, visible to parents.', '#4f46e5', 'M12 2l3 6.5 7 .8-5.2 4.8 1.4 7L12 17.6 5.8 21.1l1.4-7L2 9.3l7-.8z'],
     ['fin', 'Fees Collection', 'Monthly vouchers, receipts, online payments, dues and reminders.', '#f59e0b', 'M3 7a2 2 0 0 1 2-2h13v4M3 7v11a2 2 0 0 0 2 2h15V9H5a2 2 0 0 1-2-2'],
     ['fin', 'Income', 'Record other income: book and uniform sales, events, donations.', '#f59e0b', 'M12 19V5M5 12l7-7 7 7'],
     ['fin', 'Expenses', 'Categorised expenses, utilities, petty cash and salaries.', '#f59e0b', 'M12 5v14M5 12l7 7 7-7'],
@@ -571,8 +501,6 @@ const MODULES = [
     ['adm', 'Front Office', 'Admission enquiries, visitor book, call log, postal and complaints.', '#10b981', 'M5 3h4l2 5-2.5 1.5a11 11 0 0 0 6 6L16 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 5a2 2 0 0 1 2-2'],
     ['adm', 'Human Resources', 'Staff profiles, attendance, payroll, salary slips and leave.', '#10b981', 'M9 8a3.5 3.5 0 1 0 0-.01M2.5 20c0-3.6 2.9-6 6.5-6s6.5 2.4 6.5 6M16 4.6a3.5 3.5 0 0 1 0 6.8'],
     ['adm', 'Communication', 'Notices, two-way messages, SMS and WhatsApp to parents and staff.', '#10b981', 'M21 12a8 8 0 0 1-11.6 7.1L3 21l1.9-6.1A8 8 0 1 1 21 12Z'],
-    ['adm', 'ID Cards & Certificates', 'Print student and staff ID cards, character and leaving certificates.', '#10b981', 'M3 5h18v14H3zM7 9.5a2 2 0 1 0 0 .01M5 15c.5-1.5 1.6-2.2 3-2.2s2.5.7 3 2.2M14 9h4M14 13h4'],
-    ['adm', 'School Website', 'A ready website on your own address, edited from the admin panel.', '#10b981', 'M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zM2 12h20M12 2a15 15 0 0 1 4 10 15 15 0 0 1-4 10 15 15 0 0 1-4-10 15 15 0 0 1 4-10'],
     ['adm', 'System Settings', 'Sessions, user roles, payment methods, school logo and branding.', '#10b981', 'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM19 12a7 7 0 0 0-.1-1.2l2-1.6-2-3.4-2.4 1a7 7 0 0 0-2-1.2L14 3h-4l-.5 2.6a7 7 0 0 0-2 1.2l-2.4-1-2 3.4 2 1.6A7 7 0 0 0 5 12c0 .4 0 .8.1 1.2l-2 1.6 2 3.4 2.4-1a7 7 0 0 0 2 1.2L10 21h4l.5-2.6a7 7 0 0 0 2-1.2l2.4 1 2-3.4-2-1.6c.1-.4.1-.8.1-1.2z'],
     ['cam', 'Library', 'Book catalogue, issue and return, overdue tracking and fines.', '#0ea5e9', 'M4 3h4v18H4zM10 3h4v18h-4zM16.5 3.5l3.8 1-4.5 17-3.8-1z'],
     ['cam', 'Inventory & Assets', 'Store items, stock in / out, suppliers and asset register.', '#0ea5e9', 'm21 8-9-5-9 5 9 5zM3 8v8l9 5 9-5V8M12 13v8'],
