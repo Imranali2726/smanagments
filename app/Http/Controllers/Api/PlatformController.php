@@ -84,7 +84,70 @@ class PlatformController extends Controller
 
     public function show(School $school): JsonResponse
     {
-        return response()->json(['data' => $school->loadCount(['students', 'teachers', 'users']) ]);
+        $admin = User::withoutGlobalScopes()->where('school_id', $school->id)->where('role', 'admin')->orderBy('id')
+            ->first(['id', 'name', 'email', 'last_login_at', 'is_active']);
+
+        return response()->json(['data' => $school->loadCount(['students', 'teachers', 'users'])->toArray() + [
+            'admin' => $admin ? [
+                'id' => $admin->id, 'name' => $admin->name, 'email' => $admin->email, 'is_active' => (bool) $admin->is_active,
+                'last_login_at' => $admin->last_login_at?->toIso8601String(),
+                'sessions' => $admin->tokens()->count(),
+            ] : null,
+        ]]);
+    }
+
+    /**
+     * PUT /platform/schools/{school}/admin-login  { name?, email?, password? }
+     * Changes the school admin's sign-in details and signs the admin out of every device.
+     */
+    public function updateAdminLogin(Request $request, School $school): JsonResponse
+    {
+        $admin = User::withoutGlobalScopes()->where('school_id', $school->id)->where('role', 'admin')->orderBy('id')->first();
+        abort_unless($admin, 404, 'This school has no admin account.');
+        $data = $request->validate([
+            'name' => 'nullable|string|max:255',
+            'email' => ['nullable', 'email', 'max:255', Rule::unique('users', 'email')->ignore($admin->id)],
+            'password' => 'nullable|string|min:6|max:100',
+        ], ['email.unique' => 'This email is already used by another account.']);
+
+        $changes = [];
+        if (! empty($data['name']) && $data['name'] !== $admin->name) {
+            $admin->name = $data['name'];
+            $changes[] = 'name';
+        }
+        if (! empty($data['email']) && strtolower($data['email']) !== strtolower($admin->email)) {
+            $admin->email = strtolower($data['email']);
+            $changes[] = 'email';
+        }
+        if (! empty($data['password'])) {
+            $admin->password = $data['password'];
+            $changes[] = 'password';
+        }
+        if (! $changes) {
+            return response()->json(['message' => 'Nothing was changed.'], 422);
+        }
+        $admin->is_active = true;
+        $admin->save();
+        if (in_array('password', $changes, true)) {
+            $admin->clearTwoFactor(); // the old phone may be gone too; they can turn it on again
+        }
+        $sessions = $admin->tokens()->count();
+        $admin->tokens()->delete(); // signed out of every browser / phone right away
+
+        try {
+            \App\Models\ActivityLog::create([
+                'school_id' => $school->id, 'user_id' => null, 'actor_role' => 'super_admin', 'action' => 'update', 'module' => 'Admin login',
+                'description' => 'AAS support changed the admin '.implode(' and ', $changes).'; admin signed out of all devices',
+                'ip' => $request->ip(), 'device' => \App\Models\ActivityLog::device($request->userAgent()),
+            ]);
+        } catch (\Throwable $e) {
+            report($e);
+        }
+
+        return response()->json([
+            'message' => 'Admin '.implode(' and ', $changes).' updated. The admin was signed out of '.($sessions === 1 ? '1 device' : "{$sessions} devices").'.',
+            'admin' => ['id' => $admin->id, 'name' => $admin->name, 'email' => $admin->email, 'sessions' => 0],
+        ]);
     }
 
     public function update(Request $request, School $school): JsonResponse

@@ -2449,6 +2449,7 @@ const Platform = {
                 <div class="form-row">${field('Contact person', inp('contact_person', s.contact_person))}${field('Phone', inp('phone', s.phone))}</div>
                 <div class="form-row">${field('Email', inp('email', s.email, 'email'))}${field('City', inp('city', s.city))}</div>
                 ${field('Address', `<textarea name="address" rows="2">${esc(s.address || '')}</textarea>`)}
+                ${id ? Platform.adminLoginCard(s) : ''}
                 ${id ? '' : `<h3 class="mt">School admin login</h3>
                 <div class="form-row">${field('Admin name *', inp('admin_name', '', 'text', 'required placeholder="Principal / office"'))}${field('Admin email *', inp('admin_email', '', 'email', 'required'))}</div>
                 ${field('Admin password * (min 6)', inp('admin_password', '', 'text', 'required'))}`}
@@ -2473,6 +2474,7 @@ const Platform = {
         f.subdomain.addEventListener('keydown', () => (f.subdomain.dataset.touched = 1));
         prev();
         $('#allOn', view).onclick = () => $$('[data-mod]', f).forEach((c) => (c.checked = true));
+        if (id) Platform.bindAdminLogin(view, s);
         f.onsubmit = (e) => {
             e.preventDefault();
             busy($('button[type=submit]', f), async () => {
@@ -3173,4 +3175,66 @@ const Visitors = {
         NAV.splice(i >= 0 ? i + 1 : NAV.length, 0, ['/site-visitors', 'Landing visitors', 'eye']);
         Router.add('/site-visitors', 'Landing visitors', Visitors.page);
     };
+}
+
+/* ===========================================================
+   Super admin: change a school admin's email / password (signs them out everywhere)
+   =========================================================== */
+Object.assign(Platform, {
+    adminLoginCard(s) {
+        const a = s.admin;
+        if (!a) return '<div class="alert warn mt">This school has no admin account.</div>';
+        return `<div id="alBox" class="mt" style="border:1px solid var(--line,#e5e7eb);border-radius:14px;padding:1rem;background:#fafbff">
+            <div class="flex between" style="align-items:flex-start;gap:1rem"><div><h3 style="margin:0">School admin login</h3>
+                <small class="muted">${esc(a.name)} · <b>${esc(a.email)}</b><br>Last sign-in: ${a.last_login_at ? esc(fmt.datetime(a.last_login_at)) : 'never'} · Signed in on ${a.sessions} device${a.sessions === 1 ? '' : 's'}</small></div></div>
+            <div class="form-row mt-s">${field('Admin name', `<input data-al="name" value="${esc(a.name)}">`)}${field('Admin email (login)', `<input data-al="email" type="email" value="${esc(a.email)}">`)}</div>
+            <label class="field"><span>New password <small class="muted">(leave empty to keep the current one)</small></span>
+                <div class="flex"><input data-al="password" type="text" minlength="6" autocomplete="new-password" placeholder="Min 6 characters"><button type="button" class="btn ghost sm" id="alGen">Generate</button></div></label>
+            <div class="flex between mt-s" style="align-items:center;gap:1rem"><small class="muted">The admin is signed out of every device at once and must sign in with the new details.</small>
+                <button type="button" class="btn danger" id="alSave" data-busy="Updating…">${icon('lock')} Update admin login</button></div></div>`;
+    },
+    bindAdminLogin(view, s) {
+        const box = $('#alBox', view); if (!box || !s.admin) return;
+        const val = (k) => $(`[data-al="${k}"]`, box).value.trim();
+        $('#alGen', box).onclick = () => {
+            const c = 'abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+            const arr = crypto.getRandomValues(new Uint32Array(10));
+            $('[data-al="password"]', box).value = [...arr].map((n) => c[n % c.length]).join('');
+        };
+        $('#alSave', box).onclick = (e) => {
+            const name = val('name'), email = val('email'), password = val('password');
+            const changes = [];
+            if (email && email.toLowerCase() !== s.admin.email.toLowerCase()) changes.push(`change the login email to "${email}"`);
+            if (password) {
+                if (password.length < 6) return toast('The new password must have at least 6 characters.', 'error');
+                changes.push('set a new password');
+            }
+            if (name && name !== s.admin.name) changes.push(`change the name to "${name}"`);
+            if (!changes.length) return toast('Nothing to change. Type a new email or password first.', 'error');
+            const btn = e.currentTarget;
+            confirmBox(`Are you sure? This will ${changes.join(' and ')} for the admin of ${s.name}. The admin will be signed out of all devices right away${password ? ' and two-factor login will be turned off for this account' : ''}.`, { okText: 'Yes, change it', danger: true })
+                .then((ok) => ok && busy(btn, async () => {
+                    try {
+                        const r = await API.put(`/platform/schools/${s.id}/admin-login`, { name, email, password: password || null });
+                        if (password) {
+                            await navigator.clipboard?.writeText(`${r.admin.email} / ${password}`).catch(() => {});
+                            modal({ title: 'Admin login changed', body: `<p>${esc(r.message)}</p><div class="alert info">${icon('lock')}<div>New login for <b>${esc(s.name)}</b>:<br>Email: <b>${esc(r.admin.email)}</b><br>Password: <b>${esc(password)}</b></div></div><p class="muted"><small>Copied to the clipboard. Share it with the school privately. It is not shown again.</small></p>`, foot: '<button class="btn" data-close>Done</button>' });
+                        } else toast(r.message);
+                        s.admin = { ...s.admin, ...r.admin };
+                        box.outerHTML = Platform.adminLoginCard(s);
+                        Platform.bindAdminLogin(view, s);
+                    } catch (err) {
+                        const first = err.errors ? Object.values(err.errors)[0]?.[0] : null;
+                        toast(first || err.message, 'error');
+                    }
+                }));
+        };
+    },
+});
+
+/* Sign out quickly when this login is ended elsewhere (e.g. the super admin changed the password). */
+{
+    const check = () => { if (API.token() && App.user && document.visibilityState === 'visible') API.get('/me').catch(() => {}); };
+    setInterval(check, 60000);
+    document.addEventListener('visibilitychange', check);
 }

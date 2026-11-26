@@ -99,6 +99,7 @@ Route::middleware(['auth:sanctum', 'tenant.user', 'superadmin'])->prefix('platfo
     Route::get('/schools/{school}', [PlatformController::class, 'show']);
     Route::put('/schools/{school}', [PlatformController::class, 'update']);
     Route::post('/schools/{school}/admin-password', [PlatformController::class, 'resetAdmin']);
+    Route::put('/schools/{school}/admin-login', [PlatformController::class, 'updateAdminLogin']);
 
     // Main landing page content (aasschoolmanager.com)
     Route::get('/landing', [LandingController::class, 'show']);
